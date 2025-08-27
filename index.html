@@ -172,7 +172,7 @@
           
         return (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <label htmlFor="tickerInput" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="tickerInput" className="block text-gray-700 font-medium mb-2 text-center">
               Stock Ticker Symbol
             </label>
             <input
@@ -182,7 +182,7 @@
               onChange={(e) => setTicker(e.target.value)}
               placeholder="e.g., AAPL"
               maxLength={10}
-              className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-2 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200"
+              className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-2 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200 text-center"
             />
             <button
               type="submit"
@@ -216,6 +216,7 @@
 
       const SuccessDisplay = ({ ticker, content }) => {
         const [isCopied, setIsCopied] = useState(false);
+        const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
 
         const handleCopy = useCallback(async () => {
           try {
@@ -229,6 +230,21 @@
         }, [content]);
 
         const perplexityUrl = `https://perplexity.ai/search?q=${encodeURIComponent(content)}`;
+
+        const handlePerplexityClick = useCallback(async (e) => {
+            e.preventDefault();
+            setIsPerplexityBusy(true);
+
+            try {
+                await navigator.clipboard.writeText(content);
+            } catch (err) {
+                console.error('Failed to copy text to clipboard:', err);
+            }
+
+            window.open(perplexityUrl, '_blank', 'noopener,noreferrer');
+
+            setTimeout(() => setIsPerplexityBusy(false), 2500);
+        }, [content, perplexityUrl]);
 
         return (
           <div className="max-w-md mx-auto">
@@ -258,12 +274,22 @@
                 </button>
                 <a
                     href={perplexityUrl}
+                    onClick={handlePerplexityClick}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors duration-200"
                 >
-                    <PerplexityIcon className="w-5 h-5" />
-                    Perplexity
+                    {isPerplexityBusy ? (
+                        <React.Fragment>
+                            <CheckIcon className="w-5 h-5" />
+                            Copied & Opening...
+                        </React.Fragment>
+                    ) : (
+                        <React.Fragment>
+                            <PerplexityIcon className="w-5 h-5" />
+                            Perplexity
+                        </React.Fragment>
+                    )}
                 </a>
               </div>
             </div>
