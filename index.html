@@ -122,8 +122,8 @@
       );
       
       const PerplexityIcon = (props) => (
-        <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" {...props}>
-          <path d="M12.333 2.001a1.59 1.59 0 00-1.583 1.584v5.333H5.417a1.59 1.59 0 00-1.584 1.584v5.333a1.59 1.59 0 001.584 1.584h2.52v.666a1.59 1.59 0 001.584 1.584h5.333a1.59 1.59 0 001.584-1.584v-5.333H21.5a1.59 1.59 0 001.583-1.584V5.168a1.59 1.59 0 00-1.583-1.584h-2.521v-.916a1.59 1.59 0 00-1.584-1.584h-5.062zm-1.583 1.584h3.5v6.583h-5.083V5.168a1.59 1.59 0 011.583-1.583zm.25 9.75h5.083v3.75h-3.5v-2.167a1.59 1.59 0 00-1.583-1.583z"/>
+        <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" {...props}>
+          <path d="M12 2V22 M12 2L18 7V17L12 22L6 17V7L12 2Z M6 7L18 17 M18 7L6 17" />
         </svg>
       );
 
@@ -168,8 +168,6 @@
           e.preventDefault();
           onSubmit();
         };
-
-        const perplexitySearchUrl = `https://perplexity.ai/search?q=${encodeURIComponent(`Stock analysis for ${ticker.toUpperCase()}`)}`;
           
         return (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -202,16 +200,6 @@
                 </React.Fragment>
               )}
             </button>
-            <a
-                href={perplexitySearchUrl}
-                onClick={(e) => { if (!ticker.trim()) e.preventDefault(); }}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors duration-200 ${!ticker.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-                <PerplexityIcon className="w-5 h-5" />
-                Open in Perplexity
-            </a>
           </form>
         );
       };
@@ -240,7 +228,7 @@
           }
         }, [content]);
 
-        const perplexityUrl = `https://perplexity.ai/search?q=${encodeURIComponent(content)}`;
+        const perplexityUrl = 'https://perplexity.ai/search';
 
         const handlePerplexityClick = useCallback(async (e) => {
             e.preventDefault();
@@ -255,7 +243,7 @@
             window.location.assign(perplexityUrl);
 
             setTimeout(() => setIsPerplexityBusy(false), 2500);
-        }, [content, perplexityUrl]);
+        }, [content]);
 
         return (
           <div className="max-w-md mx-auto">
@@ -269,7 +257,7 @@
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                     onClick={handleCopy}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-gray-800 hover:bg-black transition-colors duration-200"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
                 >
                     {isCopied ? (
                     <React.Fragment>
@@ -288,7 +276,7 @@
                     onClick={handlePerplexityClick}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-teal-600 hover:bg-teal-700 transition-colors duration-200"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-black hover:bg-gray-800 transition-colors duration-200"
                 >
                     {isPerplexityBusy ? (
                         <React.Fragment>
