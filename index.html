@@ -127,6 +127,12 @@
         </svg>
       );
 
+      const GeminiIcon = (props) => (
+        <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+          <path d="M12,0 C13.6,8 19.2,9.6 24,12 C19.2,14.4 13.6,16 12,24 C10.4,16 4.8,14.4 0,12 C4.8,9.6 10.4,8 12,0 Z" />
+        </svg>
+      );
+      
       const Spinner = (props) => (
         <svg
           {...props}
@@ -196,7 +202,7 @@
               ) : (
                 <React.Fragment>
                   <GenerateIcon className="w-5 h-5" />
-                  Generate Template
+                  Generate
                 </React.Fragment>
               )}
             </button>
@@ -216,6 +222,7 @@
       const SuccessDisplay = ({ ticker, content }) => {
         const [isCopied, setIsCopied] = useState(false);
         const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
+        const [isGeminiBusy, setIsGeminiBusy] = useState(false);
 
         const handleCopy = useCallback(async () => {
           try {
@@ -229,6 +236,7 @@
         }, [content]);
 
         const perplexityUrl = 'https://perplexity.ai/search';
+        const geminiUrl = `https://gemini.google.com/app?prompt=${encodeURIComponent(content)}`;
 
         const handlePerplexityClick = useCallback(async (e) => {
             e.preventDefault();
@@ -244,9 +252,24 @@
 
             setTimeout(() => setIsPerplexityBusy(false), 2500);
         }, [content]);
+        
+        const handleGeminiClick = useCallback(async (e) => {
+            e.preventDefault();
+            setIsGeminiBusy(true);
+
+            try {
+                await navigator.clipboard.writeText(content);
+            } catch (err) {
+                console.error('Failed to copy text to clipboard:', err);
+            }
+
+            window.location.assign(geminiUrl);
+
+            setTimeout(() => setIsGeminiBusy(false), 2500);
+        }, [content, geminiUrl]);
 
         return (
-          <div className="max-w-md mx-auto">
+          <div className="max-w-xl mx-auto">
             <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
               <div className="text-center mb-4">
                 <div className="inline-flex items-center gap-2 text-green-600 font-medium">
@@ -287,6 +310,25 @@
                         <React.Fragment>
                             <PerplexityIcon className="w-5 h-5" />
                             Perplexity
+                        </React.Fragment>
+                    )}
+                </a>
+                <a
+                    href={geminiUrl}
+                    onClick={handleGeminiClick}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-black bg-white hover:bg-gray-100 border border-gray-300 transition-colors duration-200"
+                >
+                    {isGeminiBusy ? (
+                        <React.Fragment>
+                            <CheckIcon className="w-5 h-5" />
+                            Copied & Opening...
+                        </React.Fragment>
+                    ) : (
+                        <React.Fragment>
+                            <GeminiIcon className="w-5 h-5" />
+                            Gemini
                         </React.Fragment>
                     )}
                 </a>
