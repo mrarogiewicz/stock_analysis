@@ -222,6 +222,7 @@
       const SuccessDisplay = ({ ticker, content }) => {
         const [isCopied, setIsCopied] = useState(false);
         const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
+        const [isGeminiBusy, setIsGeminiBusy] = useState(false);
 
         const handleCopy = useCallback(async () => {
           try {
@@ -250,6 +251,21 @@
             window.open(perplexityUrl, '_blank', 'noopener,noreferrer');
 
             setTimeout(() => setIsPerplexityBusy(false), 2500);
+        }, [content]);
+
+        const handleGeminiClick = useCallback(async (e) => {
+            e.preventDefault();
+            setIsGeminiBusy(true);
+
+            try {
+                await navigator.clipboard.writeText(content);
+            } catch (err) {
+                console.error('Failed to copy text to clipboard for Gemini:', err);
+            }
+
+            window.location.href = geminiUrl;
+
+            setTimeout(() => setIsGeminiBusy(false), 2500);
         }, [content]);
         
         return (
@@ -299,10 +315,20 @@
                 </a>
                 <a
                     href={geminiUrl}
+                    onClick={handleGeminiClick}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-black bg-white hover:bg-gray-100 border border-gray-300 transition-colors duration-200"
                 >
-                    <GeminiIcon className="w-5 h-5" />
-                    Gemini
+                    {isGeminiBusy ? (
+                        <React.Fragment>
+                            <CheckIcon className="w-5 h-5" />
+                            Copied & Opening...
+                        </React.Fragment>
+                    ) : (
+                        <React.Fragment>
+                            <GeminiIcon className="w-5 h-5" />
+                            Gemini
+                        </React.Fragment>
+                    )}
                 </a>
               </div>
             </div>
