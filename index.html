@@ -162,8 +162,8 @@
         return (
           <header className="text-center mb-8">
             <div className="inline-flex items-center justify-center gap-3 mb-4">
-              <ChartIcon className="w-8 h-8 text-gray-600" />
-              <h1 className="text-3xl font-bold text-gray-800">Stock Analysis Generator</h1>
+              <ChartIcon className="hidden sm:block w-8 h-8 text-gray-600" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 whitespace-nowrap">Stock Analysis Generator</h1>
             </div>
           </header>
         );
@@ -236,7 +236,7 @@
         }, [content]);
 
         const perplexityUrl = 'https://perplexity.ai/search';
-        const geminiUrl = `https://gemini.google.com/app?prompt=${encodeURIComponent(content)}`;
+        const geminiUrl = 'https://gemini.google.com/app';
 
         const handlePerplexityClick = useCallback(async (e) => {
             e.preventDefault();
@@ -248,7 +248,7 @@
                 console.error('Failed to copy text to clipboard:', err);
             }
 
-            window.location.assign(perplexityUrl);
+            window.open(perplexityUrl, '_blank', 'noopener,noreferrer');
 
             setTimeout(() => setIsPerplexityBusy(false), 2500);
         }, [content]);
@@ -263,10 +263,10 @@
                 console.error('Failed to copy text to clipboard:', err);
             }
 
-            window.location.assign(geminiUrl);
+            window.open(geminiUrl, '_blank', 'noopener,noreferrer');
 
             setTimeout(() => setIsGeminiBusy(false), 2500);
-        }, [content, geminiUrl]);
+        }, [content]);
 
         return (
           <div className="max-w-xl mx-auto">
