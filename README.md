@@ -8,6 +8,6 @@ This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/drive/1Kily4uXEjyqPLARDQqgQ8IAzzSZCVhvg
 
-## Github Pages
+# Github Pages
 
 https://mrarogiewicz.github.io/stock_analysis2/
