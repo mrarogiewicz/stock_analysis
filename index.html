@@ -132,7 +132,7 @@
           <path d="M12,0 C13.6,8 19.2,9.6 24,12 C19.2,14.4 13.6,16 12,24 C10.4,16 4.8,14.4 0,12 C4.8,9.6 10.4,8 12,0 Z" />
         </svg>
       );
-      
+
       const Spinner = (props) => (
         <svg
           {...props}
@@ -223,6 +223,7 @@
         const [isCopied, setIsCopied] = useState(false);
         const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
         const [isGeminiBusy, setIsGeminiBusy] = useState(false);
+        const [isChatGptBusy, setIsChatGptBusy] = useState(false);
 
         const handleCopy = useCallback(async () => {
           try {
@@ -237,6 +238,7 @@
 
         const perplexityUrl = 'https://perplexity.ai/search';
         const geminiUrl = 'googlegemini://';
+        const chatGptUrl = 'https://chatgpt.com/';
 
         const handlePerplexityClick = useCallback(async (e) => {
             e.preventDefault();
@@ -268,6 +270,21 @@
             setTimeout(() => setIsGeminiBusy(false), 2500);
         }, [content]);
         
+        const handleChatGptClick = useCallback(async (e) => {
+            e.preventDefault();
+            setIsChatGptBusy(true);
+
+            try {
+                await navigator.clipboard.writeText(content);
+            } catch (err) {
+                console.error('Failed to copy text to clipboard for ChatGPT:', err);
+            }
+
+            window.open(chatGptUrl, '_blank', 'noopener,noreferrer');
+
+            setTimeout(() => setIsChatGptBusy(false), 2500);
+        }, [content]);
+
         return (
           <div className="max-w-xl mx-auto">
             <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
@@ -327,6 +344,24 @@
                         <React.Fragment>
                             <GeminiIcon className="w-5 h-5" />
                             Gemini
+                        </React.Fragment>
+                    )}
+                </a>
+                <a
+                    href={chatGptUrl}
+                    onClick={handleChatGptClick}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-gray-800 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
+                >
+                    {isChatGptBusy ? (
+                        <React.Fragment>
+                            <CheckIcon className="w-5 h-5" />
+                            Copied & Opening...
+                        </React.Fragment>
+                    ) : (
+                        <React.Fragment>
+                            ChatGPT
                         </React.Fragment>
                     )}
                 </a>
