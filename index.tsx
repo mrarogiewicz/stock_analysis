@@ -19,13 +19,13 @@ const useStockAnalysisGenerator = () => {
     setError(null);
     setGeneratedContent('');
 
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_API_KEY;
     setApiKeyForDisplay(apiKey || 'API Key Not Found in environment variables.');
     
     // Simulate a process to provide user feedback
     setTimeout(() => {
       if (!apiKey) {
-        setError('API_KEY environment variable not set.');
+        setError('NEXT_PUBLIC_API_KEY environment variable not set.');
         setGeneratedContent('');
       } else {
         setGeneratedContent(`This is a test generation for ticker ${ticker.toUpperCase()}. The API key from your Vercel environment variables is shown below the generate button.`);
