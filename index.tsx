@@ -9,7 +9,7 @@ const useStockAnalysisGenerator = () => {
   const [generatedContent, setGeneratedContent] = useState('');
   const [apiKeyForDisplay, setApiKeyForDisplay] = useState('');
 
-  const generateAnalysis = useCallback(() => {
+  const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
       setError('Please enter a stock ticker');
       return;
@@ -18,20 +18,27 @@ const useStockAnalysisGenerator = () => {
     setIsLoading(true);
     setError(null);
     setGeneratedContent('');
+    setApiKeyForDisplay('');
 
-    const apiKey = process.env.NEXT_PUBLIC_API_KEY;
-    setApiKeyForDisplay(apiKey || 'API Key Not Found in environment variables.');
-    
-    // Simulate a process to provide user feedback
-    setTimeout(() => {
-      if (!apiKey) {
-        setError('NEXT_PUBLIC_API_KEY environment variable not set.');
-        setGeneratedContent('');
-      } else {
-        setGeneratedContent(`This is a test generation for ticker ${ticker.toUpperCase()}. The API key from your Vercel environment variables is shown below the generate button.`);
+    try {
+      const res = await fetch('/api/get-key');
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to fetch API key from server.');
       }
+      
+      const apiKey = data.apiKey;
+      setApiKeyForDisplay(apiKey);
+      setGeneratedContent(`This is a test generation for ticker ${ticker.toUpperCase()}. The API key from your Vercel environment variables is shown below the generate button.`);
+
+    } catch (e) {
+      console.error(e);
+      setError(e.message);
+      setApiKeyForDisplay('Could not retrieve API Key.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
 
   }, [ticker]);
   
