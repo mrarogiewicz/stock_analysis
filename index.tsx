@@ -8,6 +8,7 @@ const useStockAnalysisGenerator = () => {
   const [error, setError] = useState(null);
   const [generatedContent, setGeneratedContent] = useState('');
   const [apiKeyForDisplay, setApiKeyForDisplay] = useState('');
+  const [isApiKeyLoading, setIsApiKeyLoading] = useState(false);
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -18,6 +19,25 @@ const useStockAnalysisGenerator = () => {
     setIsLoading(true);
     setError(null);
     setGeneratedContent('');
+    setApiKeyForDisplay(''); // Reset on new generation
+
+    try {
+      // This is a placeholder for the generation logic.
+      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate work
+      setGeneratedContent(`This is a test generation for ticker ${ticker.toUpperCase()}. You can now fetch the API key using the 'API' button.`);
+
+    } catch (e) {
+      console.error(e);
+      setError(e.message);
+    } finally {
+      setIsLoading(false);
+    }
+
+  }, [ticker]);
+  
+  const fetchApiKey = useCallback(async () => {
+    setIsApiKeyLoading(true);
+    setError(null);
     setApiKeyForDisplay('');
 
     try {
@@ -30,18 +50,15 @@ const useStockAnalysisGenerator = () => {
       
       const apiKey = data.apiKey;
       setApiKeyForDisplay(apiKey);
-      setGeneratedContent(`This is a test generation for ticker ${ticker.toUpperCase()}. The API key from your Vercel environment variables is shown below the generate button.`);
-
     } catch (e) {
       console.error(e);
       setError(e.message);
       setApiKeyForDisplay('Could not retrieve API Key.');
     } finally {
-      setIsLoading(false);
+      setIsApiKeyLoading(false);
     }
+  }, []);
 
-  }, [ticker]);
-  
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -59,6 +76,8 @@ const useStockAnalysisGenerator = () => {
     generatedContent,
     generateAnalysis,
     apiKeyForDisplay,
+    isApiKeyLoading,
+    fetchApiKey,
   };
 };
 
@@ -135,7 +154,7 @@ const Header = () => {
   );
 };
 
-const InputForm = ({ ticker, setTicker, isLoading, onSubmit, apiKeyForDisplay }) => {
+const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit();
@@ -175,13 +194,6 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, apiKeyForDisplay })
           </>
         )}
       </button>
-
-      {apiKeyForDisplay && (
-        <div className="mt-4 p-3 bg-gray-100 rounded-lg text-center text-xs text-gray-600 break-all">
-          <p className="font-semibold mb-1">API Key Used:</p>
-          <code>{apiKeyForDisplay}</code>
-        </div>
-      )}
     </form>
   );
 };
@@ -195,7 +207,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content }) => {
+const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKeyForDisplay }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -262,7 +274,7 @@ const SuccessDisplay = ({ ticker, content }) => {
   }, [content]);
 
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="max-w-2xl mx-auto">
       <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
         <div className="text-center mb-4">
           <div className="inline-flex items-center gap-2 text-green-600 font-medium">
@@ -270,10 +282,10 @@ const SuccessDisplay = ({ ticker, content }) => {
             <span>Analysis ready for ticker - {ticker}</span>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
               onClick={handleCopy}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
           >
               {isCopied ? (
               <>
@@ -292,7 +304,7 @@ const SuccessDisplay = ({ ticker, content }) => {
               onClick={handlePerplexityClick}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-black hover:bg-gray-800 transition-colors duration-200"
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-black hover:bg-gray-800 transition-colors duration-200"
           >
               {isPerplexityBusy ? (
                   <>
@@ -309,7 +321,7 @@ const SuccessDisplay = ({ ticker, content }) => {
           <a
               href={geminiUrl}
               onClick={handleGeminiClick}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-black bg-white hover:bg-gray-100 border border-gray-300 transition-colors duration-200"
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-black bg-white hover:bg-gray-100 border border-gray-300 transition-colors duration-200"
           >
               {isGeminiBusy ? (
                   <>
@@ -328,7 +340,7 @@ const SuccessDisplay = ({ ticker, content }) => {
               onClick={handleChatGptClick}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-gray-800 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-gray-800 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
           >
               {isChatGptBusy ? (
                   <>
@@ -341,7 +353,27 @@ const SuccessDisplay = ({ ticker, content }) => {
                   </>
               )}
           </a>
+          <button
+            onClick={onFetchApiKey}
+            disabled={isApiKeyLoading}
+            className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-gray-800 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+          >
+            {isApiKeyLoading ? (
+              <>
+                <Spinner className="w-5 h-5" />
+                Fetching...
+              </>
+            ) : (
+              'API'
+            )}
+          </button>
         </div>
+        {apiKeyForDisplay && (
+          <div className="mt-4 p-3 bg-gray-100 rounded-lg text-center text-xs text-gray-600 break-all">
+            <p className="font-semibold mb-1">API Key Used:</p>
+            <code>{apiKeyForDisplay}</code>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -374,6 +406,8 @@ const App = () => {
     generatedContent,
     generateAnalysis,
     apiKeyForDisplay,
+    isApiKeyLoading,
+    fetchApiKey,
   } = useStockAnalysisGenerator();
 
   return (
@@ -388,7 +422,6 @@ const App = () => {
                     setTicker={setTicker}
                     isLoading={isLoading}
                     onSubmit={generateAnalysis}
-                    apiKeyForDisplay={apiKeyForDisplay}
                 />
                 <ErrorMessage message={error} />
             </div>
@@ -396,7 +429,13 @@ const App = () => {
 
         {generatedContent && !error && (
             <>
-                <SuccessDisplay ticker={ticker} content={generatedContent} />
+                <SuccessDisplay 
+                  ticker={ticker} 
+                  content={generatedContent}
+                  onFetchApiKey={fetchApiKey}
+                  isApiKeyLoading={isApiKeyLoading}
+                  apiKeyForDisplay={apiKeyForDisplay}
+                />
                 <Preview content={generatedContent} />
             </>
         )}
