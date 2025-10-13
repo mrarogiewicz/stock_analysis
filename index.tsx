@@ -285,7 +285,7 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             target="_blank"
             rel="noopener noreferrer"
             title="Copy & Open in Perplexity"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors duration-200"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-black shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
           >
             {isPerplexityBusy ? (
               <CheckIcon className="w-full h-full text-green-500" />
@@ -303,7 +303,7 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             target="_blank"
             rel="noopener noreferrer"
             title="Copy & Open in Gemini"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors duration-200"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
           >
             {isGeminiBusy ? (
               <CheckIcon className="w-full h-full text-green-500" />
@@ -321,7 +321,7 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             target="_blank"
             rel="noopener noreferrer"
             title="Copy & Open in ChatGPT"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors duration-200"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
           >
             {isChatGptBusy ? (
               <CheckIcon className="w-full h-full text-green-500" />
@@ -337,7 +337,7 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             onClick={onFetchApiKey}
             disabled={isApiKeyLoading}
             title="Fetch API Key"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
           >
             {isApiKeyLoading ? (
               <Spinner className="w-full h-full" />
@@ -352,7 +352,7 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
           <button
             onClick={handleCopy}
             title="Copy Prompt"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors duration-200"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-gray-200 shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
           >
             {isCopied ? (
               <CheckIcon className="w-full h-full text-green-500" />
