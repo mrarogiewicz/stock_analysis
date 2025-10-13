@@ -145,8 +145,22 @@ const Header = () => {
 };
 
 const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
+  const [isFancyHovered, setIsFancyHovered] = useState(false);
+  const [isFancyAnimating, setIsFancyAnimating] = useState(false);
+
+  const handleFancyClick = () => {
+    if (isLoading || isFancyAnimating || !ticker.trim()) return;
+    
+    setIsFancyAnimating(true);
+    setTimeout(() => {
+      setIsFancyAnimating(false);
+      onSubmit();
+    }, 2000);
+  };
+  
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isFancyAnimating) return; // Prevent submission while fancy button is animating
     onSubmit();
   };
     
@@ -168,23 +182,13 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
       </div>
 
       <button
-        type="submit"
-        disabled={isLoading || !ticker.trim()}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-gray-700 hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+        type="button"
+        className={`FancyButton ${isFancyAnimating ? 'is-animating' : ''}`}
+        onClick={handleFancyClick}
+        disabled={isLoading || !ticker.trim() || isFancyAnimating}
+        onMouseEnter={() => !isLoading && !isFancyAnimating && setIsFancyHovered(true)}
+        onMouseLeave={() => setIsFancyHovered(false)}
       >
-        {isLoading ? (
-          <>
-            <Spinner className="w-5 h-5" />
-            Processing...
-          </>
-        ) : (
-          <>
-            Generate
-          </>
-        )}
-      </button>
-
-      <button type="button" className="FancyButton">
         <svg  
           className="Button-svg"
           width="200" 
@@ -217,7 +221,18 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
           />
         </svg>
         <div className="Button-content">
-          Fancy, isn't it?
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2">
+              <Spinner className="w-5 h-5" />
+              <span>Processing...</span>
+            </div>
+           ) : isFancyAnimating ? (
+            <span>Warming up...</span>
+           ) : isFancyHovered ? (
+            "Generate?"
+           ) : (
+            "Fancy, isn't it?"
+           )}
         </div>
       </button>
     </form>

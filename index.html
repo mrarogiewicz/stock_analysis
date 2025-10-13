@@ -38,10 +38,22 @@
     color: #BEC3C7;
     transform: scale(1.05);
   }
+  
+  .FancyButton:disabled,
+  .FancyButton:disabled:hover,
+  .FancyButton:disabled:focus {
+    cursor: not-allowed;
+    transform: none;
+    color: #98A5A6;
+    opacity: 0.7;
+  }
+  
+  .FancyButton.is-animating .Button-line--outer {
+    animation-duration: 3s; /* 50% faster */
+  }
 
-  .FancyButton:hover .Button-line,
-  .FancyButton:focus .Button-line {
-    animation-play-state: paused;
+  .FancyButton.is-animating .Button-line--inner {
+    animation-duration: 2.5s; /* 50% faster */
   }
 
   .Button-svg {
