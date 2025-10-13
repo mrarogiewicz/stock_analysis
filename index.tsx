@@ -22,13 +22,21 @@ const useStockAnalysisGenerator = () => {
     setApiKeyForDisplay(''); // Reset on new generation
 
     try {
-      // This is a placeholder for the generation logic.
-      await new Promise(resolve => setTimeout(resolve, 300)); // Simulate work
-      setGeneratedContent(`This is a test generation for ticker ${ticker.toUpperCase()}. You can now fetch the API key using the 'API' button.`);
+      const promptUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_detail.md';
+      const response = await fetch(promptUrl);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch prompt template. Status: ${response.status}`);
+      }
+      
+      const promptTemplate = await response.text();
+      const finalPrompt = promptTemplate.replace(/XXX/g, ticker.toUpperCase());
+      
+      setGeneratedContent(finalPrompt);
 
     } catch (e) {
       console.error(e);
-      setError(e.message);
+      setError(e.message || 'An error occurred while fetching the prompt.');
     } finally {
       setIsLoading(false);
     }
@@ -380,21 +388,32 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
 };
 
 const Preview = ({ content }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   return (
-    <div className="mt-8 max-w-4xl mx-auto">
-      <details className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
-        <summary className="p-4 text-gray-700 font-medium cursor-pointer hover:bg-gray-50 transition-colors">
-          Preview Content (Click to expand)
-        </summary>
-        <div className="p-4 border-t border-gray-200">
-          <pre className="text-xs text-gray-600 whitespace-pre-wrap break-words max-h-96 overflow-y-auto bg-gray-50 p-3 rounded-lg">
-            {content}
-          </pre>
+    <div className="mt-8 max-w-4xl mx-auto" onClick={toggleExpand}>
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden cursor-pointer">
+        <div className="p-4">
+          <div className="relative">
+            <pre 
+              className={`text-xs text-gray-600 whitespace-pre-wrap break-words bg-gray-50 p-3 rounded-lg transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px]' : 'max-h-24 overflow-y-hidden'}`}
+            >
+              {content}
+            </pre>
+            {!isExpanded && (
+              <div className="absolute bottom-0 left-0 w-full h-16 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-lg"></div>
+            )}
+          </div>
         </div>
-      </details>
+      </div>
     </div>
   );
 };
+
 
 // --- MAIN APP ---
 const App = () => {
