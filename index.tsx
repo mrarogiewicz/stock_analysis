@@ -96,12 +96,6 @@ const ChartIcon = (props) => (
   </svg>
 );
 
-const GenerateIcon = (props) => (
-  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
-
 const CheckIcon = (props) => (
   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -185,10 +179,46 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
           </>
         ) : (
           <>
-            <GenerateIcon className="w-5 h-5" />
             Generate
           </>
         )}
+      </button>
+
+      <button type="button" className="FancyButton">
+        <svg  
+          className="Button-svg"
+          width="200" 
+          height="50" 
+          viewBox="0 0 300 80"
+        >
+          <rect 
+            className="Button-line Button-line--outer"
+            strokeWidth="8"
+            stroke="grey" 
+            strokeLinecap="round"
+            fill="none" 
+            x="4" 
+            y="4" 
+            width="292" 
+            height="72" 
+            rx="36"
+          />
+          <rect 
+            className="Button-line Button-line--inner"
+            strokeWidth="4"
+            stroke="black" 
+            strokeLinecap="round"
+            fill="none" 
+            x="4" 
+            y="4" 
+            width="292" 
+            height="72" 
+            rx="36"
+          />
+        </svg>
+        <div className="Button-content">
+          Fancy, isn't it?
+        </div>
       </button>
     </form>
   );
