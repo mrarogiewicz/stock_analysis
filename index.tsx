@@ -114,18 +114,6 @@ const CopyIcon = (props) => (
   </svg>
 );
 
-const PerplexityIcon = (props) => (
-  <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" {...props}>
-    <path d="M12 2V22 M12 2L18 7V17L12 22L6 17V7L12 2Z M6 7L18 17 M18 7L6 17" />
-  </svg>
-);
-
-const GeminiIcon = (props) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
-    <path d="M12,0 C13.6,8 19.2,9.6 24,12 C19.2,14.4 13.6,16 12,24 C10.4,16 4.8,14.4 0,12 C4.8,9.6 10.4,8 12,0 Z" />
-  </svg>
-);
-
 const Spinner = (props) => (
   <svg
     {...props}
@@ -290,92 +278,87 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             <span>Analysis ready for ticker - {ticker}</span>
           </div>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex items-center justify-center gap-4">
           <a
-              href={perplexityUrl}
-              onClick={handlePerplexityClick}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-black hover:bg-gray-800 transition-colors duration-200"
+            href={perplexityUrl}
+            onClick={handlePerplexityClick}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Copy & Open in Perplexity"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors duration-200"
           >
-              {isPerplexityBusy ? (
-                  <>
-                      <CheckIcon className="w-5 h-5" />
-                      Copied & Opening...
-                  </>
-              ) : (
-                  <>
-                      <PerplexityIcon className="w-5 h-5" />
-                      Perplexity
-                  </>
-              )}
+            {isPerplexityBusy ? (
+              <CheckIcon className="w-full h-full text-green-500" />
+            ) : (
+              <img
+                src="https://framerusercontent.com/images/gcMkPKyj2RX8EOEja8A1GWvCb7E.jpg"
+                alt="Perplexity Logo"
+                className="w-full h-full object-contain"
+              />
+            )}
           </a>
           <a
-              href={geminiUrl}
-              onClick={handleGeminiClick}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-black bg-white hover:bg-gray-100 border border-gray-300 transition-colors duration-200"
+            href={geminiUrl}
+            onClick={handleGeminiClick}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Copy & Open in Gemini"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors duration-200"
           >
-              {isGeminiBusy ? (
-                  <>
-                      <CheckIcon className="w-5 h-5" />
-                      Copied & Opening...
-                  </>
-              ) : (
-                  <>
-                      <GeminiIcon className="w-5 h-5" />
-                      Gemini
-                  </>
-              )}
+            {isGeminiBusy ? (
+              <CheckIcon className="w-full h-full text-green-500" />
+            ) : (
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Google_Gemini_icon_2025.svg/2048px-Google_Gemini_icon_2025.svg.png"
+                alt="Gemini Logo"
+                className="w-full h-full object-contain"
+              />
+            )}
           </a>
           <a
-              href={chatGptUrl}
-              onClick={handleChatGptClick}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-gray-800 bg-gray-200 hover:bg-gray-300 transition-colors duration-200"
+            href={chatGptUrl}
+            onClick={handleChatGptClick}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Copy & Open in ChatGPT"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors duration-200"
           >
-              {isChatGptBusy ? (
-                  <>
-                      <CheckIcon className="w-5 h-5" />
-                      Copied & Opening...
-                  </>
-              ) : (
-                  <>
-                      ChatGPT
-                  </>
-              )}
+            {isChatGptBusy ? (
+              <CheckIcon className="w-full h-full text-green-500" />
+            ) : (
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/1024px-ChatGPT-Logo.svg.png"
+                alt="ChatGPT Logo"
+                className="w-full h-full object-contain"
+              />
+            )}
           </a>
           <button
             onClick={onFetchApiKey}
             disabled={isApiKeyLoading}
-            className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-gray-800 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+            title="Fetch API Key"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200"
           >
             {isApiKeyLoading ? (
-              <>
-                <Spinner className="w-5 h-5" />
-                Fetching...
-              </>
+              <Spinner className="w-full h-full" />
             ) : (
-              'API'
+              <img
+                src="https://www.pikpng.com/pngl/b/200-2005193_api-api-logo-transparent-clipart.png"
+                alt="API Key Icon"
+                className="w-full h-full object-contain"
+              />
             )}
           </button>
           <button
-              onClick={handleCopy}
-              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+            onClick={handleCopy}
+            title="Copy Prompt"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors duration-200"
           >
-              {isCopied ? (
-              <>
-                  <CheckIcon className="w-5 h-5" />
-                  Copied!
-              </>
-              ) : (
-              <>
-                  <CopyIcon className="w-5 h-5" />
-                  Copy
-              </>
-              )}
+            {isCopied ? (
+              <CheckIcon className="w-full h-full text-green-500" />
+            ) : (
+              <CopyIcon className="w-full h-full text-gray-600" />
+            )}
           </button>
         </div>
         {apiKeyForDisplay && (
