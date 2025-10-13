@@ -233,7 +233,7 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
   }, [content]);
 
   const perplexityUrl = 'https://perplexity.ai/search';
-  const geminiUrl = 'googlegemini://';
+  const geminiUrl = 'https://gemini.google.com/app';
   const chatGptUrl = 'https://chatgpt.com/';
 
   const handlePerplexityClick = useCallback(async (e) => {
@@ -261,7 +261,7 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
           console.error('Failed to copy text to clipboard for Gemini:', err);
       }
 
-      window.location.href = geminiUrl;
+      window.open(geminiUrl, '_blank', 'noopener,noreferrer');
 
       setTimeout(() => setIsGeminiBusy(false), 2500);
   }, [content]);
@@ -291,22 +291,6 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button
-              onClick={handleCopy}
-              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
-          >
-              {isCopied ? (
-              <>
-                  <CheckIcon className="w-5 h-5" />
-                  Copied!
-              </>
-              ) : (
-              <>
-                  <CopyIcon className="w-5 h-5" />
-                  Copy
-              </>
-              )}
-          </button>
           <a
               href={perplexityUrl}
               onClick={handlePerplexityClick}
@@ -329,6 +313,8 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
           <a
               href={geminiUrl}
               onClick={handleGeminiClick}
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-black bg-white hover:bg-gray-100 border border-gray-300 transition-colors duration-200"
           >
               {isGeminiBusy ? (
@@ -375,6 +361,22 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
               'API'
             )}
           </button>
+          <button
+              onClick={handleCopy}
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+          >
+              {isCopied ? (
+              <>
+                  <CheckIcon className="w-5 h-5" />
+                  Copied!
+              </>
+              ) : (
+              <>
+                  <CopyIcon className="w-5 h-5" />
+                  Copy
+              </>
+              )}
+          </button>
         </div>
         {apiKeyForDisplay && (
           <div className="mt-4 p-3 bg-gray-100 rounded-lg text-center text-xs text-gray-600 break-all">
@@ -400,7 +402,7 @@ const Preview = ({ content }) => {
         <div className="p-4">
           <div className="relative">
             <pre 
-              className={`text-xs text-gray-600 whitespace-pre-wrap break-words bg-gray-50 p-3 rounded-lg transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px]' : 'max-h-24 overflow-y-hidden'}`}
+              className={`text-xs text-gray-600 whitespace-pre-wrap break-words bg-gray-50 p-3 rounded-lg transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[25rem] overflow-y-auto' : 'max-h-24 overflow-y-hidden'}`}
             >
               {content}
             </pre>
