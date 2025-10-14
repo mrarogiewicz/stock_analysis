@@ -18,6 +18,10 @@ const useStockAnalysisGenerator = () => {
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const [geminiResponse, setGeminiResponse] = useState('');
+  const [isGeneratingWithGemini, setIsGeneratingWithGemini] = useState(false);
+  const [geminiError, setGeminiError] = useState(null);
+
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -33,6 +37,9 @@ const useStockAnalysisGenerator = () => {
     setGeneratedForTicker('');
     setSaveError(null);
     setSaveSuccess(false);
+    setGeminiResponse('');
+    setGeminiError(null);
+
 
     try {
       const simpleUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_simple.md';
@@ -131,6 +138,36 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedSimpleContent, generatedDetailContent, generatedForTicker, displayType]);
 
+  const generateWithGemini = useCallback(async () => {
+    if (displayType !== 'simple' || !generatedSimpleContent) return;
+
+    setIsGeneratingWithGemini(true);
+    setGeminiError(null);
+    setGeminiResponse('');
+
+    try {
+      const res = await fetch('/api/generate-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: generatedSimpleContent }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to generate analysis with Gemini.');
+      }
+
+      const data = await res.json();
+      setGeminiResponse(data.text);
+
+    } catch (e) {
+      console.error(e);
+      setGeminiError(e.message);
+    } finally {
+      setIsGeneratingWithGemini(false);
+    }
+  }, [generatedSimpleContent, displayType]);
+
 
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
@@ -143,6 +180,8 @@ const useStockAnalysisGenerator = () => {
     if (apiKeyForDisplay) setApiKeyForDisplay('');
     setSaveError(null);
     setSaveSuccess(false);
+    setGeminiResponse('');
+    setGeminiError(null);
   };
 
   return {
@@ -163,6 +202,10 @@ const useStockAnalysisGenerator = () => {
     saveError,
     saveSuccess,
     saveAnalysis,
+    geminiResponse,
+    isGeneratingWithGemini,
+    geminiError,
+    generateWithGemini,
   };
 };
 
@@ -189,6 +232,12 @@ const CloudUploadIcon = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
   </svg>
+);
+
+const AiIcon = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.502L16.5 21.75l-.398-1.248a3.375 3.375 0 00-2.455-2.456L12.75 18l1.248-.398a3.375 3.375 0 002.455-2.456L16.5 14.25l.398 1.248a3.375 3.375 0 002.456 2.456l1.248.398-1.248.398a3.375 3.375 0 00-2.456 2.456z" />
+    </svg>
 );
 
 const Spinner = (props) => (
@@ -335,7 +384,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKeyForDisplay, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange }) => {
+const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKeyForDisplay, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -436,7 +485,7 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             </button>
         </div>
 
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-4 flex-wrap">
           <a
             href={perplexityUrl}
             onClick={handlePerplexityClick}
@@ -491,6 +540,20 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
               />
             )}
           </a>
+          {displayType === 'simple' && (
+            <button
+              onClick={onGenerateWithGemini}
+              disabled={isGeneratingWithGemini}
+              title="Generate Analysis with Gemini Pro"
+              className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-purple-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
+            >
+              {isGeneratingWithGemini ? (
+                <Spinner className="w-full h-full text-purple-600" />
+              ) : (
+                <AiIcon className="w-full h-full text-purple-600" />
+              )}
+            </button>
+          )}
           <button
             onClick={onSaveAnalysis}
             disabled={isSaving || saveSuccess}
@@ -552,7 +615,7 @@ const Preview = ({ content }) => {
   };
 
   return (
-    <div className="mt-8 max-w-4xl mx-auto" onClick={toggleExpand}>
+    <div className="mt-8 max-w-2xl mx-auto" onClick={toggleExpand}>
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden cursor-pointer">
         <div className="p-4">
           <div className="relative">
@@ -569,6 +632,30 @@ const Preview = ({ content }) => {
       </div>
     </div>
   );
+};
+
+const GeminiResponseDisplay = ({ content, ticker }) => {
+    if (!content) return null;
+  
+    return (
+      <div className="mt-8 max-w-2xl mx-auto">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+          <div className="p-6">
+            <h3 className="text-center font-medium text-gray-700 mb-4">
+              Gemini Pro Analysis for{' '}
+              <span style={{ color: '#38B6FF' }} className="font-bold">
+                {ticker}
+              </span>
+            </h3>
+            <pre 
+              className="text-sm text-gray-700 whitespace-pre-wrap break-words bg-gray-50 p-4 rounded-lg max-h-[30rem] overflow-y-auto"
+            >
+              {content}
+            </pre>
+          </div>
+        </div>
+      </div>
+    );
 };
 
 
@@ -592,6 +679,10 @@ const App = () => {
     saveError,
     saveSuccess,
     saveAnalysis,
+    geminiResponse,
+    isGeneratingWithGemini,
+    geminiError,
+    generateWithGemini,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -627,11 +718,17 @@ const App = () => {
                   onSaveAnalysis={saveAnalysis}
                   displayType={displayType}
                   onDisplayTypeChange={setDisplayType}
+                  onGenerateWithGemini={generateWithGemini}
+                  isGeneratingWithGemini={isGeneratingWithGemini}
                 />
                 <div className="max-w-2xl mx-auto">
                     <ErrorMessage message={saveError} />
                 </div>
                 <Preview content={contentToDisplay} />
+                 <div className="max-w-2xl mx-auto">
+                    <ErrorMessage message={geminiError} />
+                </div>
+                <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
             </>
         )}
       </div>
