@@ -23,7 +23,7 @@ export default async function handler(request, response) {
         model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
-          systemInstruction: "You are a financial analyst providing a stock analysis. Respond in plain text format, without using any Markdown (no headings, bolding, lists, etc.). Use clear paragraphs for readability.",
+          systemInstruction: "You are a financial analyst providing a stock analysis. Respond in well-structured Markdown format. Use headings, bold text, bullet points, and tables to present the data clearly and professionally, similar to a GitHub README file.",
         },
     });
     

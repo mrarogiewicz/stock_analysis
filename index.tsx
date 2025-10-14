@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
+import { marked } from 'marked';
 
 // --- HOOKS ---
 const useStockAnalysisGenerator = () => {
@@ -583,6 +584,15 @@ const Preview = ({ content }) => {
 
 const GeminiResponseDisplay = ({ content, ticker }) => {
     if (!content) return null;
+    
+    const getHtmlContent = () => {
+      try {
+        return marked.parse(content);
+      } catch (error) {
+        console.error("Error parsing markdown:", error);
+        return `<p>Error rendering analysis.</p>`;
+      }
+    };
   
     return (
       <div className="mt-8 max-w-2xl mx-auto">
@@ -594,11 +604,11 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
                 {ticker}
               </span>
             </h3>
-            <pre 
-              className="text-sm text-gray-700 whitespace-pre-wrap break-words bg-gray-50 p-4 rounded-lg max-h-[30rem] overflow-y-auto"
+            <div 
+              className="prose text-sm text-gray-700 max-w-none bg-gray-50 p-4 rounded-lg max-h-[30rem] overflow-y-auto"
+              dangerouslySetInnerHTML={{ __html: getHtmlContent() }}
             >
-              {content}
-            </pre>
+            </div>
           </div>
         </div>
       </div>
