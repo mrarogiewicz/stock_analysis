@@ -421,7 +421,7 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
   }, [content]);
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div>
       <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
         <div className="text-center mb-4">
           <p className="font-medium text-gray-700">
@@ -563,7 +563,7 @@ const Preview = ({ content }) => {
   };
 
   return (
-    <div className="mt-8 max-w-2xl mx-auto" onClick={toggleExpand}>
+    <div onClick={toggleExpand}>
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden cursor-pointer">
         <div className="p-4">
           <div className="relative">
@@ -595,7 +595,7 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
     };
   
     return (
-      <div className="mt-8 max-w-2xl mx-auto">
+      <div>
         <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
           <div className="p-6">
             <h3 className="text-center font-medium text-gray-700 mb-4">
@@ -646,8 +646,11 @@ const App = () => {
     <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800">
       <div className="container mx-auto px-4 py-8">
         <Header isTickerPresent={isTickerPresent} />
-
-        <div className="max-w-md mx-auto mb-8">
+        
+        <div className="md:flex md:gap-8">
+          {/* --- LEFT COLUMN --- */}
+          <div className="md:w-1/4 space-y-8">
+            {/* Section 1: Input */}
             <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
                 <InputForm
                     ticker={ticker}
@@ -657,10 +660,10 @@ const App = () => {
                 />
                 <ErrorMessage message={error} />
             </div>
-        </div>
 
-        {contentToDisplay && !error && (
-            <>
+            {/* Section 2: Actions */}
+            {contentToDisplay && !error && (
+              <div>
                 <SuccessDisplay 
                   ticker={generatedForTicker} 
                   content={contentToDisplay}
@@ -672,16 +675,27 @@ const App = () => {
                   onGenerateWithGemini={generateWithGemini}
                   isGeneratingWithGemini={isGeneratingWithGemini}
                 />
-                <div className="max-w-2xl mx-auto">
-                    <ErrorMessage message={saveError} />
-                </div>
+                <ErrorMessage message={saveError} />
+              </div>
+            )}
+          </div>
+
+          {/* --- RIGHT COLUMN --- */}
+          <div className="w-full md:w-3/4 mt-8 md:mt-0">
+            {contentToDisplay && !error && (
+              <div className="space-y-8">
+                 {/* Section 3: Prompt Preview */}
                 <Preview content={contentToDisplay} />
-                 <div className="max-w-2xl mx-auto">
-                    <ErrorMessage message={geminiError} />
+                
+                {/* Section 4: Gemini Output */}
+                <div>
+                  <ErrorMessage message={geminiError} />
+                  <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
                 </div>
-                <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
-            </>
-        )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </main>
   );
