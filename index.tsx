@@ -255,8 +255,6 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
       >
         <svg  
           className="Button-svg"
-          width="200" 
-          height="50" 
           viewBox="0 0 300 80"
         >
           <rect 
