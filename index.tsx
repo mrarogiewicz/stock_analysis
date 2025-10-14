@@ -9,6 +9,7 @@ const useStockAnalysisGenerator = () => {
   const [generatedContent, setGeneratedContent] = useState('');
   const [apiKeyForDisplay, setApiKeyForDisplay] = useState('');
   const [isApiKeyLoading, setIsApiKeyLoading] = useState(false);
+  const [generatedForTicker, setGeneratedForTicker] = useState('');
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -20,6 +21,7 @@ const useStockAnalysisGenerator = () => {
     setError(null);
     setGeneratedContent('');
     setApiKeyForDisplay(''); // Reset on new generation
+    setGeneratedForTicker('');
 
     try {
       const promptUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_detail.md';
@@ -33,6 +35,8 @@ const useStockAnalysisGenerator = () => {
       const finalPrompt = promptTemplate.replace(/XXX/g, ticker.toUpperCase());
       
       setGeneratedContent(finalPrompt);
+      setGeneratedForTicker(ticker.toUpperCase());
+      setTicker(''); // Clear the input field
 
     } catch (e) {
       console.error(e);
@@ -70,7 +74,10 @@ const useStockAnalysisGenerator = () => {
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
-    if (generatedContent) setGeneratedContent('');
+    if (generatedContent) {
+      setGeneratedContent('');
+      setGeneratedForTicker('');
+    }
     if (apiKeyForDisplay) setApiKeyForDisplay('');
   };
 
@@ -86,6 +93,7 @@ const useStockAnalysisGenerator = () => {
     apiKeyForDisplay,
     isApiKeyLoading,
     fetchApiKey,
+    generatedForTicker,
   };
 };
 
@@ -133,11 +141,11 @@ const Spinner = (props) => (
 );
 
 // --- COMPONENTS ---
-const Header = () => {
+const Header = ({ isTickerPresent }) => {
   return (
     <header className="text-center mb-8">
       <div className="inline-flex items-center justify-center gap-3 mb-4">
-        <ChartIcon className="w-8 h-8 text-gray-600" />
+        <ChartIcon className={`w-8 h-8 transition-colors duration-300 ${isTickerPresent ? 'text-[#38B6FF]' : 'text-black'}`} />
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 whitespace-nowrap">Stock Analysis Generator</h1>
       </div>
     </header>
@@ -147,6 +155,7 @@ const Header = () => {
 const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
   const [isFancyHovered, setIsFancyHovered] = useState(false);
   const [isFancyAnimating, setIsFancyAnimating] = useState(false);
+  const hasTicker = ticker.trim().length > 0;
 
   const handleFancyClick = () => {
     if (isLoading || isFancyAnimating || !ticker.trim()) return;
@@ -198,7 +207,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
           <rect 
             className="Button-line Button-line--outer"
             strokeWidth="8"
-            stroke="grey" 
+            stroke={hasTicker ? '#87CEEB' : 'grey'} 
             strokeLinecap="round"
             fill="none" 
             x="4" 
@@ -210,7 +219,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
           <rect 
             className="Button-line Button-line--inner"
             strokeWidth="4"
-            stroke="black" 
+            stroke={hasTicker ? '#59788E' : 'black'}
             strokeLinecap="round"
             fill="none" 
             x="4" 
@@ -221,18 +230,22 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
           />
         </svg>
         <div className="Button-content">
-          {isLoading ? (
-            <div className="flex items-center justify-center gap-2">
-              <Spinner className="w-5 h-5" />
-              <span>Processing...</span>
-            </div>
-           ) : isFancyAnimating ? (
-            <span>Warming up...</span>
-           ) : isFancyHovered ? (
-            "Generate?"
-           ) : (
-            "Fancy, isn't it?"
-           )}
+          {hasTicker ? (
+            isLoading ? (
+              <div className="flex items-center justify-center gap-2">
+                <Spinner className="w-5 h-5" />
+                <span>Processing...</span>
+              </div>
+            ) : isFancyAnimating ? (
+              <span>Generating...</span>
+            ) : isFancyHovered ? (
+              <span style={{ color: '#59788E' }} className="font-bold">Generate?</span>
+            ) : (
+              <span style={{ color: '#59788E' }} className="font-bold">Generate</span>
+            )
+          ) : (
+            <span></span>
+          )}
         </div>
       </button>
     </form>
@@ -318,10 +331,12 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
     <div className="max-w-2xl mx-auto">
       <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
         <div className="text-center mb-4">
-          <div className="inline-flex items-center gap-2 text-green-600 font-medium">
-            <CheckIcon className="w-5 h-5" />
-            <span>Analysis ready for ticker - {ticker}</span>
-          </div>
+          <p className="font-medium text-gray-700">
+            Analysis for ticker -{' '}
+            <span style={{ color: '#38B6FF' }} className="font-bold">
+              {ticker}
+            </span>
+          </p>
         </div>
         <div className="flex items-center justify-center gap-4">
           <a
@@ -457,12 +472,15 @@ const App = () => {
     apiKeyForDisplay,
     isApiKeyLoading,
     fetchApiKey,
+    generatedForTicker,
   } = useStockAnalysisGenerator();
+
+  const isTickerPresent = ticker.trim().length > 0;
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800">
       <div className="container mx-auto px-4 py-8">
-        <Header />
+        <Header isTickerPresent={isTickerPresent} />
 
         <div className="max-w-md mx-auto mb-8">
             <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
@@ -479,7 +497,7 @@ const App = () => {
         {generatedContent && !error && (
             <>
                 <SuccessDisplay 
-                  ticker={ticker} 
+                  ticker={generatedForTicker} 
                   content={generatedContent}
                   onFetchApiKey={fetchApiKey}
                   isApiKeyLoading={isApiKeyLoading}
