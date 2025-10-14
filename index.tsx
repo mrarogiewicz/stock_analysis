@@ -421,135 +421,133 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
   }, [content]);
 
   return (
-    <div>
-      <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
-        <div className="text-center mb-4">
-          <p className="font-medium text-gray-700">
-            Analysis for ticker -{' '}
-            <span style={{ color: '#38B6FF' }} className="font-bold">
-              {ticker}
-            </span>
-          </p>
-        </div>
+    <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
+      <div className="text-center mb-4">
+        <p className="font-medium text-gray-700">
+          Analysis for ticker -{' '}
+          <span style={{ color: '#38B6FF' }} className="font-bold">
+            {ticker}
+          </span>
+        </p>
+      </div>
 
-        <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-lg p-1 mb-5">
-            <button
-                type="button"
-                onClick={() => onDisplayTypeChange('simple')}
-                aria-pressed={displayType === 'simple'}
-                className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
-                displayType === 'simple' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-                }`}
-            >
-                Simple
-            </button>
-            <button
-                type="button"
-                onClick={() => onDisplayTypeChange('detail')}
-                aria-pressed={displayType === 'detail'}
-                className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
-                displayType === 'detail' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-                }`}
-            >
-                Detail
-            </button>
-        </div>
+      <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-lg p-1 mb-5">
+          <button
+              type="button"
+              onClick={() => onDisplayTypeChange('simple')}
+              aria-pressed={displayType === 'simple'}
+              className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+              displayType === 'simple' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+              }`}
+          >
+              Simple
+          </button>
+          <button
+              type="button"
+              onClick={() => onDisplayTypeChange('detail')}
+              aria-pressed={displayType === 'detail'}
+              className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+              displayType === 'detail' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+              }`}
+          >
+              Detail
+          </button>
+      </div>
 
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          <a
-            href={perplexityUrl}
-            onClick={handlePerplexityClick}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Copy & Open in Perplexity"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-black shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-          >
-            {isPerplexityBusy ? (
-              <CheckIcon className="w-full h-full text-green-500" />
-            ) : (
-              <img
-                src="https://framerusercontent.com/images/gcMkPKyj2RX8EOEja8A1GWvCb7E.jpg"
-                alt="Perplexity Logo"
-                className="w-full h-full object-contain"
-              />
-            )}
-          </a>
-          <a
-            href={geminiUrl}
-            onClick={handleGeminiClick}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Copy & Open in Gemini"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-          >
-            {isGeminiBusy ? (
-              <CheckIcon className="w-full h-full text-green-500" />
-            ) : (
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Google_Gemini_icon_2025.svg/2048px-Google_Gemini_icon_2025.svg.png"
-                alt="Gemini Logo"
-                className="w-full h-full object-contain"
-              />
-            )}
-          </a>
-          <a
-            href={chatGptUrl}
-            onClick={handleChatGptClick}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Copy & Open in ChatGPT"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-          >
-            {isChatGptBusy ? (
-              <CheckIcon className="w-full h-full text-green-500" />
-            ) : (
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/1024px-ChatGPT-Logo.svg.png"
-                alt="ChatGPT Logo"
-                className="w-full h-full object-contain"
-              />
-            )}
-          </a>
-          {displayType === 'simple' && (
-            <button
-              onClick={onGenerateWithGemini}
-              disabled={isGeneratingWithGemini}
-              title="Generate Analysis with Gemini Pro"
-              className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-purple-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
-            >
-              {isGeneratingWithGemini ? (
-                <Spinner className="w-full h-full text-purple-600" />
-              ) : (
-                <AiIcon className="w-full h-full text-purple-600" />
-              )}
-            </button>
+      <div className="flex items-center justify-center gap-4 flex-wrap md:flex-nowrap">
+        <a
+          href={perplexityUrl}
+          onClick={handlePerplexityClick}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Copy & Open in Perplexity"
+          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-black shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+        >
+          {isPerplexityBusy ? (
+            <CheckIcon className="w-full h-full text-green-500" />
+          ) : (
+            <img
+              src="https://framerusercontent.com/images/gcMkPKyj2RX8EOEja8A1GWvCb7E.jpg"
+              alt="Perplexity Logo"
+              className="w-full h-full object-contain"
+            />
           )}
+        </a>
+        <a
+          href={geminiUrl}
+          onClick={handleGeminiClick}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Copy & Open in Gemini"
+          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+        >
+          {isGeminiBusy ? (
+            <CheckIcon className="w-full h-full text-green-500" />
+          ) : (
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Google_Gemini_icon_2025.svg/2048px-Google_Gemini_icon_2025.svg.png"
+              alt="Gemini Logo"
+              className="w-full h-full object-contain"
+            />
+          )}
+        </a>
+        <a
+          href={chatGptUrl}
+          onClick={handleChatGptClick}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Copy & Open in ChatGPT"
+          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+        >
+          {isChatGptBusy ? (
+            <CheckIcon className="w-full h-full text-green-500" />
+          ) : (
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/1024px-ChatGPT-Logo.svg.png"
+              alt="ChatGPT Logo"
+              className="w-full h-full object-contain"
+            />
+          )}
+        </a>
+        {displayType === 'simple' && (
           <button
-            onClick={onSaveAnalysis}
-            disabled={isSaving || saveSuccess}
-            title="Save to Cloud"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-blue-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
+            onClick={onGenerateWithGemini}
+            disabled={isGeneratingWithGemini}
+            title="Generate Analysis with Gemini Pro"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-purple-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
           >
-            {isSaving ? (
-              <Spinner className="w-full h-full text-blue-600" />
-            ) : saveSuccess ? (
-              <CheckIcon className="w-full h-full text-green-500" />
+            {isGeneratingWithGemini ? (
+              <Spinner className="w-full h-full text-purple-600" />
             ) : (
-              <CloudUploadIcon className="w-full h-full text-blue-600" />
+              <AiIcon className="w-full h-full text-purple-600" />
             )}
           </button>
-          <button
-            onClick={handleCopy}
-            title="Copy Prompt"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-gray-200 shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-          >
-            {isCopied ? (
-              <CheckIcon className="w-full h-full text-green-500" />
-            ) : (
-              <CopyIcon className="w-full h-full text-gray-600" />
-            )}
-          </button>
-        </div>
+        )}
+        <button
+          onClick={onSaveAnalysis}
+          disabled={isSaving || saveSuccess}
+          title="Save to Cloud"
+          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-blue-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
+        >
+          {isSaving ? (
+            <Spinner className="w-full h-full text-blue-600" />
+          ) : saveSuccess ? (
+            <CheckIcon className="w-full h-full text-green-500" />
+          ) : (
+            <CloudUploadIcon className="w-full h-full text-blue-600" />
+          )}
+        </button>
+        <button
+          onClick={handleCopy}
+          title="Copy Prompt"
+          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-gray-200 shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+        >
+          {isCopied ? (
+            <CheckIcon className="w-full h-full text-green-500" />
+          ) : (
+            <CopyIcon className="w-full h-full text-gray-600" />
+          )}
+        </button>
       </div>
     </div>
   );
@@ -595,20 +593,18 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
     };
   
     return (
-      <div>
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
-          <div className="p-6">
-            <h3 className="text-center font-medium text-gray-700 mb-4">
-              Gemini Pro Analysis for{' '}
-              <span style={{ color: '#38B6FF' }} className="font-bold">
-                {ticker}
-              </span>
-            </h3>
-            <div 
-              className="prose text-sm text-gray-700 max-w-none bg-gray-50 p-4 rounded-lg max-h-[30rem] overflow-y-auto"
-              dangerouslySetInnerHTML={{ __html: getHtmlContent() }}
-            >
-            </div>
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+        <div className="p-6">
+          <h3 className="text-center font-medium text-gray-700 mb-4">
+            Gemini Pro Analysis for{' '}
+            <span style={{ color: '#38B6FF' }} className="font-bold">
+              {ticker}
+            </span>
+          </h3>
+          <div 
+            className="prose text-sm text-gray-700 max-w-none bg-gray-50 p-4 rounded-lg max-h-[30rem] overflow-y-auto"
+            dangerouslySetInnerHTML={{ __html: getHtmlContent() }}
+          >
           </div>
         </div>
       </div>
@@ -646,24 +642,25 @@ const App = () => {
     <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800">
       <div className="container mx-auto px-4 py-8">
         <Header isTickerPresent={isTickerPresent} />
-        
+
         <div className="md:flex md:gap-8">
+          
           {/* --- LEFT COLUMN --- */}
-          <div className="md:w-1/4 space-y-8">
-            {/* Section 1: Input */}
-            <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
-                <InputForm
-                    ticker={ticker}
-                    setTicker={setTicker}
-                    isLoading={isLoading}
-                    onSubmit={generateAnalysis}
-                />
-                <ErrorMessage message={error} />
+          <div className="md:w-auto md:flex-shrink-0">
+            <div className="max-w-md mx-auto md:max-w-none md:mx-0 mb-8">
+                <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
+                    <InputForm
+                        ticker={ticker}
+                        setTicker={setTicker}
+                        isLoading={isLoading}
+                        onSubmit={generateAnalysis}
+                    />
+                    <ErrorMessage message={error} />
+                </div>
             </div>
 
-            {/* Section 2: Actions */}
             {contentToDisplay && !error && (
-              <div>
+              <div className="mb-8 md:mb-0">
                 <SuccessDisplay 
                   ticker={generatedForTicker} 
                   content={contentToDisplay}
@@ -679,22 +676,19 @@ const App = () => {
               </div>
             )}
           </div>
-
+          
           {/* --- RIGHT COLUMN --- */}
-          <div className="w-full md:w-3/4 mt-8 md:mt-0">
-            {contentToDisplay && !error && (
-              <div className="space-y-8">
-                 {/* Section 3: Prompt Preview */}
+          {contentToDisplay && !error && (
+            <div className="md:flex-1 min-w-0">
+              <div className="mb-8">
                 <Preview content={contentToDisplay} />
-                
-                {/* Section 4: Gemini Output */}
-                <div>
-                  <ErrorMessage message={geminiError} />
-                  <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
-                </div>
               </div>
-            )}
-          </div>
+              <div className="">
+                <ErrorMessage message={geminiError} />
+                <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>
