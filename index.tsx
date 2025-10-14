@@ -6,7 +6,11 @@ const useStockAnalysisGenerator = () => {
   const [ticker, setTicker] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [generatedContent, setGeneratedContent] = useState('');
+  
+  const [generatedSimpleContent, setGeneratedSimpleContent] = useState('');
+  const [generatedDetailContent, setGeneratedDetailContent] = useState('');
+  const [displayType, setDisplayType] = useState('detail');
+
   const [apiKeyForDisplay, setApiKeyForDisplay] = useState('');
   const [isApiKeyLoading, setIsApiKeyLoading] = useState(false);
   const [generatedForTicker, setGeneratedForTicker] = useState('');
@@ -23,30 +27,43 @@ const useStockAnalysisGenerator = () => {
     
     setIsLoading(true);
     setError(null);
-    setGeneratedContent('');
-    setApiKeyForDisplay(''); // Reset on new generation
+    setGeneratedSimpleContent('');
+    setGeneratedDetailContent('');
+    setApiKeyForDisplay(''); 
     setGeneratedForTicker('');
     setSaveError(null);
     setSaveSuccess(false);
 
     try {
-      const promptUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_detail.md';
-      const response = await fetch(promptUrl);
+      const simpleUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_simple.md';
+      const detailUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_detail.md';
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch prompt template. Status: ${response.status}`);
+      const [simpleResponse, detailResponse] = await Promise.all([
+          fetch(simpleUrl),
+          fetch(detailUrl)
+      ]);
+
+      if (!simpleResponse.ok || !detailResponse.ok) {
+        throw new Error(`Failed to fetch prompt templates.`);
       }
       
-      const promptTemplate = await response.text();
-      const finalPrompt = promptTemplate.replace(/XXX/g, ticker.toUpperCase());
+      const [simpleTemplate, detailTemplate] = await Promise.all([
+          simpleResponse.text(),
+          detailResponse.text()
+      ]);
       
-      setGeneratedContent(finalPrompt);
+      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase());
+      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase());
+      
+      setGeneratedSimpleContent(finalSimplePrompt);
+      setGeneratedDetailContent(finalDetailPrompt);
+      setDisplayType('detail'); // Default to showing detail view
       setGeneratedForTicker(ticker.toUpperCase());
       setTicker(''); // Clear the input field
 
     } catch (e) {
       console.error(e);
-      setError(e.message || 'An error occurred while fetching the prompt.');
+      setError(e.message || 'An error occurred while fetching the prompts.');
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +95,8 @@ const useStockAnalysisGenerator = () => {
   }, []);
 
   const saveAnalysis = useCallback(async () => {
-    if (!generatedContent || !generatedForTicker) return;
+    const contentToSave = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
+    if (!contentToSave || !generatedForTicker) return;
 
     setIsSaving(true);
     setSaveError(null);
@@ -92,7 +110,7 @@ const useStockAnalysisGenerator = () => {
             },
             body: JSON.stringify({
                 ticker: generatedForTicker,
-                content: generatedContent,
+                content: contentToSave,
             }),
         });
 
@@ -111,14 +129,15 @@ const useStockAnalysisGenerator = () => {
     } finally {
         setIsSaving(false);
     }
-  }, [generatedContent, generatedForTicker]);
+  }, [generatedSimpleContent, generatedDetailContent, generatedForTicker, displayType]);
 
 
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
-    if (generatedContent) {
-      setGeneratedContent('');
+    if (generatedDetailContent) {
+      setGeneratedSimpleContent('');
+      setGeneratedDetailContent('');
       setGeneratedForTicker('');
     }
     if (apiKeyForDisplay) setApiKeyForDisplay('');
@@ -129,11 +148,12 @@ const useStockAnalysisGenerator = () => {
   return {
     ticker,
     setTicker: handleSetTicker,
-    promptType: 'detail', // Keep a default value, though it's not used for generation anymore
-    setPromptType: () => {}, // Dummy function
+    displayType,
+    setDisplayType,
     isLoading,
     error,
-    generatedContent,
+    generatedSimpleContent,
+    generatedDetailContent,
     generateAnalysis,
     apiKeyForDisplay,
     isApiKeyLoading,
@@ -315,7 +335,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKeyForDisplay, isSaving, saveSuccess, onSaveAnalysis }) => {
+const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKeyForDisplay, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -392,6 +412,30 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             </span>
           </p>
         </div>
+
+        <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-lg p-1 mb-5">
+            <button
+                type="button"
+                onClick={() => onDisplayTypeChange('simple')}
+                aria-pressed={displayType === 'simple'}
+                className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+                displayType === 'simple' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+                }`}
+            >
+                Simple
+            </button>
+            <button
+                type="button"
+                onClick={() => onDisplayTypeChange('detail')}
+                aria-pressed={displayType === 'detail'}
+                className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+                displayType === 'detail' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+                }`}
+            >
+                Detail
+            </button>
+        </div>
+
         <div className="flex items-center justify-center gap-4">
           <a
             href={perplexityUrl}
@@ -533,9 +577,12 @@ const App = () => {
   const {
     ticker,
     setTicker,
+    displayType,
+    setDisplayType,
     isLoading,
     error,
-    generatedContent,
+    generatedSimpleContent,
+    generatedDetailContent,
     generateAnalysis,
     apiKeyForDisplay,
     isApiKeyLoading,
@@ -548,6 +595,7 @@ const App = () => {
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
+  const contentToDisplay = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800">
@@ -566,22 +614,24 @@ const App = () => {
             </div>
         </div>
 
-        {generatedContent && !error && (
+        {contentToDisplay && !error && (
             <>
                 <SuccessDisplay 
                   ticker={generatedForTicker} 
-                  content={generatedContent}
+                  content={contentToDisplay}
                   onFetchApiKey={fetchApiKey}
                   isApiKeyLoading={isApiKeyLoading}
                   apiKeyForDisplay={apiKeyForDisplay}
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}
                   onSaveAnalysis={saveAnalysis}
+                  displayType={displayType}
+                  onDisplayTypeChange={setDisplayType}
                 />
                 <div className="max-w-2xl mx-auto">
                     <ErrorMessage message={saveError} />
                 </div>
-                <Preview content={generatedContent} />
+                <Preview content={contentToDisplay} />
             </>
         )}
       </div>
