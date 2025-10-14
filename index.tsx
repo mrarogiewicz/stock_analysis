@@ -247,23 +247,8 @@ const Header = ({ isTickerPresent }) => {
 };
 
 const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
-  const [isFancyHovered, setIsFancyHovered] = useState(false);
-  const [isFancyAnimating, setIsFancyAnimating] = useState(false);
-  const hasTicker = ticker.trim().length > 0;
-
-  const handleFancyClick = () => {
-    if (isLoading || isFancyAnimating || !ticker.trim()) return;
-    
-    setIsFancyAnimating(true);
-    setTimeout(() => {
-      setIsFancyAnimating(false);
-      onSubmit();
-    }, 2000);
-  };
-  
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isFancyAnimating) return; // Prevent submission while fancy button is animating
     onSubmit();
   };
     
@@ -285,61 +270,18 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
       </div>
 
       <button
-        type="button"
-        className={`FancyButton ${isFancyAnimating ? 'is-animating' : ''}`}
-        onClick={handleFancyClick}
-        disabled={isLoading || !ticker.trim() || isFancyAnimating}
-        onMouseEnter={() => !isLoading && !isFancyAnimating && setIsFancyHovered(true)}
-        onMouseLeave={() => setIsFancyHovered(false)}
+        type="submit"
+        disabled={isLoading || !ticker.trim()}
+        className="w-full flex items-center justify-center px-4 py-3 bg-[#38B6FF] text-white font-bold rounded-xl hover:bg-[#32a3e6] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38B6FF] transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed"
       >
-        <svg  
-          className="Button-svg"
-          viewBox="0 0 300 80"
-          preserveAspectRatio="none"
-        >
-          <rect 
-            className="Button-line Button-line--outer"
-            strokeWidth="8"
-            stroke={hasTicker ? '#87CEEB' : 'grey'} 
-            strokeLinecap="round"
-            fill="none" 
-            x="4" 
-            y="4" 
-            width="292" 
-            height="72" 
-            rx="36"
-          />
-          <rect 
-            className="Button-line Button-line--inner"
-            strokeWidth="4"
-            stroke={hasTicker ? '#59788E' : 'black'}
-            strokeLinecap="round"
-            fill="none" 
-            x="4" 
-            y="4" 
-            width="292" 
-            height="72" 
-            rx="36"
-          />
-        </svg>
-        <div className="Button-content">
-          {hasTicker ? (
-            isLoading ? (
-              <div className="flex items-center justify-center gap-2">
-                <Spinner className="w-5 h-5" />
-                <span>Processing...</span>
-              </div>
-            ) : isFancyAnimating ? (
-              <span>Generating...</span>
-            ) : isFancyHovered ? (
-              <span style={{ color: '#59788E' }} className="font-bold">Generate?</span>
-            ) : (
-              <span style={{ color: '#59788E' }} className="font-bold">Generate</span>
-            )
-          ) : (
-            <span></span>
-          )}
-        </div>
+        {isLoading ? (
+          <>
+            <Spinner className="w-5 h-5 mr-2" />
+            <span>Processing...</span>
+          </>
+        ) : (
+          'Generate'
+        )}
       </button>
     </form>
   );
@@ -640,13 +582,13 @@ const App = () => {
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 py-8">
         <Header isTickerPresent={isTickerPresent} />
 
         <div className="md:flex md:gap-8">
           
           {/* --- LEFT COLUMN --- */}
-          <div className="md:w-auto md:flex-shrink-0">
+          <div className="md:w-fit md:flex-shrink-0">
             <div className="max-w-md mx-auto md:max-w-none md:mx-0 mb-8">
                 <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
                     <InputForm
