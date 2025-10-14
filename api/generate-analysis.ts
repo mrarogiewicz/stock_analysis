@@ -22,6 +22,9 @@ export default async function handler(request, response) {
     const genAIResponse = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
+        config: {
+          systemInstruction: "You are a financial analyst providing a stock analysis. Respond in plain text format, without using any Markdown (no headings, bolding, lists, etc.). Use clear paragraphs for readability.",
+        },
     });
     
     const text = genAIResponse.text;
