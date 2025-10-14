@@ -11,8 +11,6 @@ const useStockAnalysisGenerator = () => {
   const [generatedDetailContent, setGeneratedDetailContent] = useState('');
   const [displayType, setDisplayType] = useState('detail');
 
-  const [apiKeyForDisplay, setApiKeyForDisplay] = useState('');
-  const [isApiKeyLoading, setIsApiKeyLoading] = useState(false);
   const [generatedForTicker, setGeneratedForTicker] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -33,7 +31,6 @@ const useStockAnalysisGenerator = () => {
     setError(null);
     setGeneratedSimpleContent('');
     setGeneratedDetailContent('');
-    setApiKeyForDisplay(''); 
     setGeneratedForTicker('');
     setSaveError(null);
     setSaveSuccess(false);
@@ -77,30 +74,6 @@ const useStockAnalysisGenerator = () => {
 
   }, [ticker]);
   
-  const fetchApiKey = useCallback(async () => {
-    setIsApiKeyLoading(true);
-    setError(null);
-    setApiKeyForDisplay('');
-
-    try {
-      const res = await fetch('/api/get-key');
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to fetch API key from server.');
-      }
-      
-      const apiKey = data.apiKey;
-      setApiKeyForDisplay(apiKey);
-    } catch (e) {
-      console.error(e);
-      setError(e.message);
-      setApiKeyForDisplay('Could not retrieve API Key.');
-    } finally {
-      setIsApiKeyLoading(false);
-    }
-  }, []);
-
   const saveAnalysis = useCallback(async () => {
     const contentToSave = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
     if (!contentToSave || !generatedForTicker) return;
@@ -177,7 +150,6 @@ const useStockAnalysisGenerator = () => {
       setGeneratedDetailContent('');
       setGeneratedForTicker('');
     }
-    if (apiKeyForDisplay) setApiKeyForDisplay('');
     setSaveError(null);
     setSaveSuccess(false);
     setGeminiResponse('');
@@ -194,9 +166,6 @@ const useStockAnalysisGenerator = () => {
     generatedSimpleContent,
     generatedDetailContent,
     generateAnalysis,
-    apiKeyForDisplay,
-    isApiKeyLoading,
-    fetchApiKey,
     generatedForTicker,
     isSaving,
     saveError,
@@ -384,7 +353,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKeyForDisplay, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini }) => {
+const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -569,22 +538,6 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             )}
           </button>
           <button
-            onClick={onFetchApiKey}
-            disabled={isApiKeyLoading}
-            title="Fetch API Key"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
-          >
-            {isApiKeyLoading ? (
-              <Spinner className="w-full h-full" />
-            ) : (
-              <img
-                src="https://www.pikpng.com/pngl/b/200-2005193_api-api-logo-transparent-clipart.png"
-                alt="API Key Icon"
-                className="w-full h-full object-contain"
-              />
-            )}
-          </button>
-          <button
             onClick={handleCopy}
             title="Copy Prompt"
             className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-gray-200 shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
@@ -596,12 +549,6 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             )}
           </button>
         </div>
-        {apiKeyForDisplay && (
-          <div className="mt-4 p-3 bg-gray-100 rounded-lg text-center text-xs text-gray-600 break-all">
-            <p className="font-semibold mb-1">API Key Used:</p>
-            <code>{apiKeyForDisplay}</code>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -671,9 +618,6 @@ const App = () => {
     generatedSimpleContent,
     generatedDetailContent,
     generateAnalysis,
-    apiKeyForDisplay,
-    isApiKeyLoading,
-    fetchApiKey,
     generatedForTicker,
     isSaving,
     saveError,
@@ -710,9 +654,6 @@ const App = () => {
                 <SuccessDisplay 
                   ticker={generatedForTicker} 
                   content={contentToDisplay}
-                  onFetchApiKey={fetchApiKey}
-                  isApiKeyLoading={isApiKeyLoading}
-                  apiKeyForDisplay={apiKeyForDisplay}
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}
                   onSaveAnalysis={saveAnalysis}
