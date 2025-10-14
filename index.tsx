@@ -10,6 +10,10 @@ const useStockAnalysisGenerator = () => {
   const [apiKeyForDisplay, setApiKeyForDisplay] = useState('');
   const [isApiKeyLoading, setIsApiKeyLoading] = useState(false);
   const [generatedForTicker, setGeneratedForTicker] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -22,6 +26,8 @@ const useStockAnalysisGenerator = () => {
     setGeneratedContent('');
     setApiKeyForDisplay(''); // Reset on new generation
     setGeneratedForTicker('');
+    setSaveError(null);
+    setSaveSuccess(false);
 
     try {
       const promptUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_detail.md';
@@ -71,6 +77,43 @@ const useStockAnalysisGenerator = () => {
     }
   }, []);
 
+  const saveAnalysis = useCallback(async () => {
+    if (!generatedContent || !generatedForTicker) return;
+
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+        const res = await fetch('/api/save-analysis', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                ticker: generatedForTicker,
+                content: generatedContent,
+            }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to save analysis.');
+        }
+
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
+
+    } catch (e) {
+        console.error(e);
+        setSaveError(e.message);
+    } finally {
+        setIsSaving(false);
+    }
+  }, [generatedContent, generatedForTicker]);
+
+
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -79,6 +122,8 @@ const useStockAnalysisGenerator = () => {
       setGeneratedForTicker('');
     }
     if (apiKeyForDisplay) setApiKeyForDisplay('');
+    setSaveError(null);
+    setSaveSuccess(false);
   };
 
   return {
@@ -94,6 +139,10 @@ const useStockAnalysisGenerator = () => {
     isApiKeyLoading,
     fetchApiKey,
     generatedForTicker,
+    isSaving,
+    saveError,
+    saveSuccess,
+    saveAnalysis,
   };
 };
 
@@ -113,6 +162,12 @@ const CheckIcon = (props) => (
 const CopyIcon = (props) => (
   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  </svg>
+);
+
+const CloudUploadIcon = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
   </svg>
 );
 
@@ -261,7 +316,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKeyForDisplay }) => {
+const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKeyForDisplay, isSaving, saveSuccess, onSaveAnalysis }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -394,6 +449,20 @@ const SuccessDisplay = ({ ticker, content, onFetchApiKey, isApiKeyLoading, apiKe
             )}
           </a>
           <button
+            onClick={onSaveAnalysis}
+            disabled={isSaving || saveSuccess}
+            title="Save to Cloud"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-blue-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
+          >
+            {isSaving ? (
+              <Spinner className="w-full h-full text-blue-600" />
+            ) : saveSuccess ? (
+              <CheckIcon className="w-full h-full text-green-500" />
+            ) : (
+              <CloudUploadIcon className="w-full h-full text-blue-600" />
+            )}
+          </button>
+          <button
             onClick={onFetchApiKey}
             disabled={isApiKeyLoading}
             title="Fetch API Key"
@@ -473,6 +542,10 @@ const App = () => {
     isApiKeyLoading,
     fetchApiKey,
     generatedForTicker,
+    isSaving,
+    saveError,
+    saveSuccess,
+    saveAnalysis,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -502,7 +575,13 @@ const App = () => {
                   onFetchApiKey={fetchApiKey}
                   isApiKeyLoading={isApiKeyLoading}
                   apiKeyForDisplay={apiKeyForDisplay}
+                  isSaving={isSaving}
+                  saveSuccess={saveSuccess}
+                  onSaveAnalysis={saveAnalysis}
                 />
+                <div className="max-w-2xl mx-auto">
+                    <ErrorMessage message={saveError} />
+                </div>
                 <Preview content={generatedContent} />
             </>
         )}
