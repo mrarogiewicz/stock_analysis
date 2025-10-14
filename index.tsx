@@ -256,6 +256,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
         <svg  
           className="Button-svg"
           viewBox="0 0 300 80"
+          preserveAspectRatio="none"
         >
           <rect 
             className="Button-line Button-line--outer"
