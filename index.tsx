@@ -30,9 +30,6 @@ const useStockAnalysisGenerator = () => {
     
     setIsLoading(true);
     setError(null);
-    setGeneratedSimpleContent('');
-    setGeneratedDetailContent('');
-    setGeneratedForTicker('');
     setSaveError(null);
     setSaveSuccess(false);
     setGeminiResponse('');
@@ -40,6 +37,8 @@ const useStockAnalysisGenerator = () => {
 
 
     try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       const simpleUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_simple.md';
       const detailUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_detail.md';
 
@@ -146,15 +145,6 @@ const useStockAnalysisGenerator = () => {
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
-    if (generatedDetailContent) {
-      setGeneratedSimpleContent('');
-      setGeneratedDetailContent('');
-      setGeneratedForTicker('');
-    }
-    setSaveError(null);
-    setSaveSuccess(false);
-    setGeminiResponse('');
-    setGeminiError(null);
   };
 
   return {
@@ -251,6 +241,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
     e.preventDefault();
     onSubmit();
   };
+  const isDisabledAndNotLoading = !isLoading && !ticker.trim();
     
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -265,14 +256,14 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
           onChange={(e) => setTicker(e.target.value)}
           placeholder="e.g., AAPL"
           maxLength={10}
-          className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-2 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200 text-center"
+          className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200 text-center"
         />
       </div>
 
       <button
         type="submit"
         disabled={isLoading || !ticker.trim()}
-        className="w-full flex items-center justify-center px-4 py-3 bg-[#38B6FF] text-white font-bold rounded-xl hover:bg-[#32a3e6] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38B6FF] transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed"
+        className="relative overflow-hidden w-full flex items-center justify-center px-4 py-3 bg-[#38B6FF] text-white font-bold rounded-2xl hover:bg-[#32a3e6] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38B6FF] transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <>
@@ -280,7 +271,14 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
             <span>Processing...</span>
           </>
         ) : (
-          'Generate'
+          <span className={isDisabledAndNotLoading ? 'text-transparent' : ''}>Generate</span>
+        )}
+        {isDisabledAndNotLoading && (
+            <div aria-hidden="true" className="bubbles absolute inset-0 pointer-events-none">
+                {[...Array(10)].map((_, i) => (
+                    <div key={i} className="bubble"></div>
+                ))}
+            </div>
         )}
       </button>
     </form>
@@ -376,16 +374,6 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
       <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-lg p-1 mb-5">
           <button
               type="button"
-              onClick={() => onDisplayTypeChange('simple')}
-              aria-pressed={displayType === 'simple'}
-              className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
-              displayType === 'simple' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-              }`}
-          >
-              Simple
-          </button>
-          <button
-              type="button"
               onClick={() => onDisplayTypeChange('detail')}
               aria-pressed={displayType === 'detail'}
               className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
@@ -393,6 +381,16 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
               }`}
           >
               Detail
+          </button>
+          <button
+              type="button"
+              onClick={() => onDisplayTypeChange('simple')}
+              aria-pressed={displayType === 'simple'}
+              className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+              displayType === 'simple' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+              }`}
+          >
+              Simple
           </button>
       </div>
 
