@@ -585,10 +585,10 @@ const App = () => {
       <div className="container mx-auto px-2 py-8">
         <Header isTickerPresent={isTickerPresent} />
 
-        <div className="grid md:grid-cols-2 md:gap-8">
+        <div className="md:flex md:gap-8">
           
           {/* --- LEFT COLUMN --- */}
-          <div>
+          <div className="md:w-fit md:flex-shrink-0">
             <div className="max-w-md mx-auto md:max-w-none md:mx-0 mb-8">
                 <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
                     <InputForm
@@ -620,19 +620,17 @@ const App = () => {
           </div>
           
           {/* --- RIGHT COLUMN --- */}
-          <div>
-            {contentToDisplay && !error && (
-                <>
-                    <div className="mb-8">
-                        <Preview content={contentToDisplay} />
-                    </div>
-                    <div className="">
-                        <ErrorMessage message={geminiError} />
-                        <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
-                    </div>
-                </>
-            )}
-          </div>
+          {contentToDisplay && !error && (
+            <div className="md:flex-1 min-w-0">
+              <div className="mb-8">
+                <Preview content={contentToDisplay} />
+              </div>
+              <div className="">
+                <ErrorMessage message={geminiError} />
+                <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>
