@@ -21,10 +21,6 @@ const useStockAnalysisGenerator = () => {
   const [isGeneratingWithGemini, setIsGeneratingWithGemini] = useState(false);
   const [geminiError, setGeminiError] = useState(null);
 
-  const [deepResearchResponse, setDeepResearchResponse] = useState('');
-  const [isGeneratingDeepResearch, setIsGeneratingDeepResearch] = useState(false);
-  const [deepResearchError, setDeepResearchError] = useState(null);
-
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -38,8 +34,6 @@ const useStockAnalysisGenerator = () => {
     setSaveSuccess(false);
     setGeminiResponse('');
     setGeminiError(null);
-    setDeepResearchResponse('');
-    setDeepResearchError(null);
 
 
     try {
@@ -147,37 +141,6 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedSimpleContent, displayType]);
 
-  const generateDeepResearch = useCallback(async () => {
-    if (displayType !== 'detail' || !generatedDetailContent) return;
-
-    setIsGeneratingDeepResearch(true);
-    setDeepResearchError(null);
-    setDeepResearchResponse('');
-
-    try {
-      const res = await fetch('/api/generate-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: generatedDetailContent }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to generate deep research with Gemini.');
-      }
-
-      const data = await res.json();
-      setDeepResearchResponse(data.text);
-
-    } catch (e) {
-      console.error(e);
-      setDeepResearchError(e.message);
-    } finally {
-      setIsGeneratingDeepResearch(false);
-    }
-  }, [generatedDetailContent, displayType]);
-
-
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -202,10 +165,6 @@ const useStockAnalysisGenerator = () => {
     isGeneratingWithGemini,
     geminiError,
     generateWithGemini,
-    deepResearchResponse,
-    isGeneratingDeepResearch,
-    deepResearchError,
-    generateDeepResearch,
   };
 };
 
@@ -334,7 +293,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onGenerateDeepResearch, isGeneratingDeepResearch }) => {
+const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -504,19 +463,6 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
           </button>
         )}
         {displayType === 'detail' && (
-          <>
-            <button
-                onClick={onGenerateDeepResearch}
-                disabled={isGeneratingDeepResearch}
-                title="Deep Research with Gemini Pro"
-                className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-teal-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
-            >
-                {isGeneratingDeepResearch ? (
-                <Spinner className="w-full h-full text-teal-600" />
-                ) : (
-                <AiIcon className="w-full h-full text-teal-600" />
-                )}
-            </button>
             <button
               onClick={onSaveAnalysis}
               disabled={isSaving || saveSuccess}
@@ -531,7 +477,6 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
                 <CloudUploadIcon className="w-full h-full text-blue-600" />
               )}
             </button>
-          </>
         )}
         <button
           onClick={handleCopy}
@@ -607,37 +552,6 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
     );
 };
 
-const DeepResearchResponseDisplay = ({ content, ticker }) => {
-    if (!content) return null;
-    
-    const getHtmlContent = () => {
-      try {
-        return marked.parse(content);
-      } catch (error) {
-        console.error("Error parsing markdown:", error);
-        return `<p>Error rendering analysis.</p>`;
-      }
-    };
-  
-    return (
-      <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
-        <div className="p-6">
-          <h3 className="text-center font-medium text-gray-700 mb-4">
-            Gemini Pro Deep Research for{' '}
-            <span style={{ color: '#38B6FF' }} className="font-bold">
-              {ticker}
-            </span>
-          </h3>
-          <div 
-            className="prose text-sm text-gray-700 max-w-none bg-gray-50 p-4 rounded-lg max-h-[30rem] overflow-y-auto"
-            dangerouslySetInnerHTML={{ __html: getHtmlContent() }}
-          >
-          </div>
-        </div>
-      </div>
-    );
-};
-
 
 // --- MAIN APP ---
 const App = () => {
@@ -660,10 +574,6 @@ const App = () => {
     isGeneratingWithGemini,
     geminiError,
     generateWithGemini,
-    deepResearchResponse,
-    isGeneratingDeepResearch,
-    deepResearchError,
-    generateDeepResearch,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -702,8 +612,6 @@ const App = () => {
                   onDisplayTypeChange={setDisplayType}
                   onGenerateWithGemini={generateWithGemini}
                   isGeneratingWithGemini={isGeneratingWithGemini}
-                  onGenerateDeepResearch={generateDeepResearch}
-                  isGeneratingDeepResearch={isGeneratingDeepResearch}
                 />
                 <ErrorMessage message={saveError} />
               </div>
@@ -721,12 +629,6 @@ const App = () => {
                   <div>
                     <ErrorMessage message={geminiError} />
                     <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
-                  </div>
-                )}
-                {(deepResearchResponse || deepResearchError) && (
-                  <div>
-                    <ErrorMessage message={deepResearchError} />
-                    <DeepResearchResponseDisplay content={deepResearchResponse} ticker={generatedForTicker} />
                   </div>
                 )}
               </div>
