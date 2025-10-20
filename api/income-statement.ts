@@ -12,14 +12,23 @@ export default async function handler(request, response) {
 
   try {
     const apiResponse = await fetch(url);
-    if (!apiResponse.ok) {
-      return response.status(apiResponse.status).json({ error: `Failed to fetch data from Alpha Vantage. Status: ${apiResponse.status}` });
-    }
+    const responseText = await apiResponse.text();
 
-    const data = await apiResponse.json();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Alpha Vantage response is not valid JSON:', responseText);
+      const detail = responseText.length < 500 ? responseText : 'The response from the financial data provider was not in the expected format.';
+      return response.status(502).json({ error: 'Bad Gateway: Invalid response from data provider.', details: detail });
+    }
     
     if (data["Error Message"]) {
       return response.status(400).json({ error: `Alpha Vantage API Error: ${data["Error Message"]}` });
+    }
+
+    if (data["Note"]) {
+        return response.status(429).json({ error: `Alpha Vantage API Rate Limit: ${data["Note"]}` });
     }
     
     if (Object.keys(data).length === 0 || !data.symbol) {
@@ -28,7 +37,7 @@ export default async function handler(request, response) {
 
     return response.status(200).json(data);
   } catch (error) {
-    console.error('Error fetching income statement:', error);
+    console.error('Error in income-statement handler:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
     return response.status(500).json({ error: 'Internal server error.', details: errorMessage });
   }
