@@ -21,10 +21,6 @@ const useStockAnalysisGenerator = () => {
   const [isGeneratingWithGemini, setIsGeneratingWithGemini] = useState(false);
   const [geminiError, setGeminiError] = useState(null);
 
-  const [incomeStatement, setIncomeStatement] = useState(null);
-  const [isFetchingIncomeStatement, setIsFetchingIncomeStatement] = useState(false);
-  const [incomeStatementError, setIncomeStatementError] = useState(null);
-
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -38,8 +34,6 @@ const useStockAnalysisGenerator = () => {
     setSaveSuccess(false);
     setGeminiResponse('');
     setGeminiError(null);
-    setIncomeStatement(null);
-    setIncomeStatementError(null);
 
 
     try {
@@ -147,31 +141,6 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedSimpleContent, displayType]);
 
-  const fetchIncomeStatement = useCallback(async (tickerToFetch) => {
-    if (!tickerToFetch) return;
-
-    setIsFetchingIncomeStatement(true);
-    setIncomeStatement(null);
-    setIncomeStatementError(null);
-
-    try {
-      const res = await fetch(`/api/income-statement?ticker=${tickerToFetch}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to fetch income statement.');
-      }
-      
-      setIncomeStatement(data);
-
-    } catch (e) {
-      console.error(e);
-      setIncomeStatementError(e.message);
-    } finally {
-      setIsFetchingIncomeStatement(false);
-    }
-  }, []);
-
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -196,10 +165,6 @@ const useStockAnalysisGenerator = () => {
     isGeneratingWithGemini,
     geminiError,
     generateWithGemini,
-    incomeStatement,
-    isFetchingIncomeStatement,
-    incomeStatementError,
-    fetchIncomeStatement,
   };
 };
 
@@ -231,12 +196,6 @@ const CloudUploadIcon = (props) => (
 const AiIcon = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.502L16.5 21.75l-.398-1.248a3.375 3.375 0 00-2.455-2.456L12.75 18l1.248-.398a3.375 3.375 0 002.455-2.456L16.5 14.25l.398 1.248a3.375 3.375 0 002.456 2.456l1.248.398-1.248.398a3.375 3.375 0 00-2.456 2.456z" />
-    </svg>
-);
-
-const ISIcon = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
     </svg>
 );
 
@@ -334,7 +293,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement }) => {
+const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -520,18 +479,6 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
             </button>
         )}
         <button
-            onClick={() => onFetchIncomeStatement(ticker)}
-            disabled={isFetchingIncomeStatement}
-            title="Fetch Income Statement"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-green-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
-        >
-            {isFetchingIncomeStatement ? (
-                <Spinner className="w-full h-full text-green-600" />
-            ) : (
-                <ISIcon className="w-full h-full text-green-600" />
-            )}
-        </button>
-        <button
           onClick={handleCopy}
           title="Copy Prompt"
           className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-gray-200 shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
@@ -605,74 +552,6 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
     );
 };
 
-const IncomeStatementDisplay = ({ data, ticker }) => {
-    if (!data || !data.annualReports || data.annualReports.length === 0) return null;
-
-    const reports = data.annualReports;
-
-    const formatNumber = (numStr) => {
-        if (numStr === 'None' || numStr === null) return 'N/A';
-        const number = parseInt(numStr, 10);
-        if (isNaN(number)) return 'N/A';
-
-        if (Math.abs(number) >= 1_000_000_000) {
-            return `${(number / 1_000_000_000).toFixed(2)}B`;
-        }
-        if (Math.abs(number) >= 1_000_000) {
-            return `${(number / 1_000_000).toFixed(2)}M`;
-        }
-        if (Math.abs(number) >= 1_000) {
-            return `${(number / 1_000).toFixed(2)}K`;
-        }
-        return number.toString();
-    };
-
-    const metrics = [
-        { key: 'totalRevenue', label: 'Total Revenue' },
-        { key: 'grossProfit', label: 'Gross Profit' },
-        { key: 'operatingIncome', label: 'Operating Income' },
-        { key: 'netIncome', label: 'Net Income' },
-        { key: 'researchAndDevelopment', label: 'R&D' },
-        { key: 'ebit', label: 'EBIT' },
-    ];
-
-    return (
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
-            <div className="p-6">
-                <h3 className="text-center font-medium text-gray-700 mb-4">
-                    Annual Income Statement for{' '}
-                    <span style={{ color: '#38B6FF' }} className="font-bold">
-                        {ticker}
-                    </span>
-                    <span className="text-xs text-gray-500 block">(all figures in {reports[0].reportedCurrency})</span>
-                </h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-600">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-                            <tr>
-                                <th scope="col" className="px-4 py-3">Metric</th>
-                                {reports.map(report => (
-                                    <th key={report.fiscalDateEnding} scope="col" className="px-4 py-3 text-right">{new Date(report.fiscalDateEnding).getFullYear()}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {metrics.map(metric => (
-                                <tr key={metric.key} className="bg-white border-b hover:bg-gray-50">
-                                    <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{metric.label}</th>
-                                    {reports.map(report => (
-                                        <td key={`${report.fiscalDateEnding}-${metric.key}`} className="px-4 py-3 text-right">{formatNumber(report[metric.key])}</td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 // --- MAIN APP ---
 const App = () => {
@@ -695,10 +574,6 @@ const App = () => {
     isGeneratingWithGemini,
     geminiError,
     generateWithGemini,
-    incomeStatement,
-    isFetchingIncomeStatement,
-    incomeStatementError,
-    fetchIncomeStatement,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -737,8 +612,6 @@ const App = () => {
                   onDisplayTypeChange={setDisplayType}
                   onGenerateWithGemini={generateWithGemini}
                   isGeneratingWithGemini={isGeneratingWithGemini}
-                  onFetchIncomeStatement={fetchIncomeStatement}
-                  isFetchingIncomeStatement={isFetchingIncomeStatement}
                 />
                 <ErrorMessage message={saveError} />
               </div>
@@ -748,23 +621,17 @@ const App = () => {
           {/* --- RIGHT COLUMN --- */}
           {contentToDisplay && !error && (
             <div className="md:flex-1 min-w-0">
-                <div className="space-y-8">
-                    <div>
-                        <Preview content={contentToDisplay} />
-                    </div>
-                    {(geminiResponse || geminiError) && (
-                      <div>
-                        <ErrorMessage message={geminiError} />
-                        <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
-                      </div>
-                    )}
-                    {(incomeStatement || incomeStatementError) && (
-                        <div>
-                            <ErrorMessage message={incomeStatementError} />
-                            <IncomeStatementDisplay data={incomeStatement} ticker={generatedForTicker} />
-                        </div>
-                    )}
-                </div>
+              <div className="mb-8">
+                <Preview content={contentToDisplay} />
+              </div>
+              <div className="space-y-8">
+                {(geminiResponse || geminiError) && (
+                  <div>
+                    <ErrorMessage message={geminiError} />
+                    <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
