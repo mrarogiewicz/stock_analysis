@@ -25,6 +25,10 @@ const useStockAnalysisGenerator = () => {
   const [isFetchingIncomeStatement, setIsFetchingIncomeStatement] = useState(false);
   const [incomeStatementError, setIncomeStatementError] = useState(null);
 
+  const [keyStatisticsData, setKeyStatisticsData] = useState(null);
+  const [isFetchingKeyStatistics, setIsFetchingKeyStatistics] = useState(false);
+  const [keyStatisticsError, setKeyStatisticsError] = useState(null);
+
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -40,6 +44,9 @@ const useStockAnalysisGenerator = () => {
     setGeminiError(null);
     setIncomeStatement(null);
     setIncomeStatementError(null);
+    setKeyStatisticsData(null);
+    setKeyStatisticsError(null);
+
 
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -171,6 +178,63 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker]);
 
+  const fetchKeyStatistics = useCallback(async () => {
+    if (!generatedForTicker) return;
+
+    setIsFetchingKeyStatistics(true);
+    setKeyStatisticsError(null);
+    setKeyStatisticsData(null);
+
+    try {
+        const res = await fetch(`/api/income-statement?ticker=${generatedForTicker}&yahooStats=true`);
+        
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({ error: 'Failed to fetch key statistics from Yahoo Finance.' }));
+            throw new Error(errorData.error || 'Failed to fetch key statistics from Yahoo Finance.');
+        }
+
+        const htmlText = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, 'text/html');
+
+        const sections = doc.querySelectorAll('section[data-test="qsp-statistics"] > div');
+        const tablesData = [];
+        
+        sections.forEach(section => {
+            const titleEl = section.querySelector('h2, h3, h6');
+            const tableEl = section.querySelector('table');
+
+            if (titleEl && tableEl) {
+                const title = titleEl.textContent.trim();
+                const rows = [];
+                
+                tableEl.querySelectorAll('tbody > tr').forEach(tr => {
+                    const cells = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
+                    if (cells.length > 0) {
+                        rows.push(cells);
+                    }
+                });
+
+                if (rows.length > 0) {
+                    tablesData.push({ title, rows });
+                }
+            }
+        });
+        
+        if (tablesData.length === 0) {
+            throw new Error('Could not find or parse key statistics tables. The page structure may have changed or the ticker is invalid.');
+        }
+
+        setKeyStatisticsData(tablesData);
+
+    } catch (e) {
+        console.error(e);
+        setKeyStatisticsError(e.message);
+    } finally {
+        setIsFetchingKeyStatistics(false);
+    }
+  }, [generatedForTicker]);
+
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -199,6 +263,10 @@ const useStockAnalysisGenerator = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
+    keyStatisticsData,
+    isFetchingKeyStatistics,
+    keyStatisticsError,
+    fetchKeyStatistics,
   };
 };
 
@@ -327,7 +395,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement }) => {
+const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement, onFetchKeyStatistics, isFetchingKeyStatistics }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -526,20 +594,36 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
             )}
             </button>
         </div>
-        <button
-            onClick={onFetchIncomeStatement}
-            disabled={isFetchingIncomeStatement}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-        >
-            {isFetchingIncomeStatement ? (
-                <>
-                    <Spinner className="w-5 h-5 text-gray-600" />
-                    <span>Fetching Financials...</span>
-                </>
-            ) : (
-                <span>Income Statement</span>
-            )}
-        </button>
+        <div className="space-y-2">
+            <button
+                onClick={onFetchIncomeStatement}
+                disabled={isFetchingIncomeStatement}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+            >
+                {isFetchingIncomeStatement ? (
+                    <>
+                        <Spinner className="w-5 h-5 text-gray-600" />
+                        <span>Fetching Financials...</span>
+                    </>
+                ) : (
+                    <span>Income Statement</span>
+                )}
+            </button>
+            <button
+                onClick={onFetchKeyStatistics}
+                disabled={isFetchingKeyStatistics}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+            >
+                {isFetchingKeyStatistics ? (
+                    <>
+                        <Spinner className="w-5 h-5 text-gray-600" />
+                        <span>Fetching Key Stats...</span>
+                    </>
+                ) : (
+                    <span>Key Statistics</span>
+                )}
+            </button>
+        </div>
       </div>
     </div>
   );
@@ -721,6 +805,45 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     );
   };
 
+const KeyStatisticsDisplay = ({ data, ticker }) => {
+    if (!data) return null;
+
+    return (
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+            <div className="p-6">
+                <h3 className="text-center font-medium text-gray-700 mb-4">
+                    Key Statistics for{' '}
+                    <span style={{ color: '#38B6FF' }} className="font-bold">
+                        {ticker}
+                    </span>
+                </h3>
+                <div className="space-y-6 max-h-[40rem] overflow-y-auto pr-2">
+                    {data.map((table, index) => (
+                        <div key={index}>
+                            <h4 className="text-md font-semibold text-gray-800 mb-2">{table.title}</h4>
+                            <div className="overflow-x-auto rounded-lg border border-gray-200">
+                                <table className="w-full text-sm text-left text-gray-600">
+                                    <tbody className="divide-y divide-gray-200">
+                                        {table.rows.map((row, rowIndex) => (
+                                            <tr className="bg-white hover:bg-gray-50" key={rowIndex}>
+                                                {row.map((cell, cellIndex) => (
+                                                    <td className={`px-4 py-2 ${cellIndex === 0 ? 'font-medium text-gray-900' : ''}`} key={cellIndex}>
+                                                        {cell}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 // --- MAIN APP ---
 const App = () => {
@@ -747,6 +870,10 @@ const App = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
+    keyStatisticsData,
+    isFetchingKeyStatistics,
+    keyStatisticsError,
+    fetchKeyStatistics,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -787,6 +914,8 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchIncomeStatement={fetchIncomeStatement}
                   isFetchingIncomeStatement={isFetchingIncomeStatement}
+                  onFetchKeyStatistics={fetchKeyStatistics}
+                  isFetchingKeyStatistics={isFetchingKeyStatistics}
                 />
                 <ErrorMessage message={saveError} />
               </div>
@@ -798,19 +927,26 @@ const App = () => {
             <div className="md:flex-1 min-w-0">
               <div className="space-y-8">
                 <Preview content={contentToDisplay} />
-
-                {(incomeStatement || incomeStatementError) && (
-                    <div>
-                        <ErrorMessage message={incomeStatementError} />
-                        <IncomeStatementDisplay data={incomeStatement} ticker={generatedForTicker} />
-                    </div>
-                )}
                 
                 {(geminiResponse || geminiError) && (
                   <div>
                     <ErrorMessage message={geminiError} />
                     <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
                   </div>
+                )}
+                
+                {(incomeStatement || incomeStatementError) && (
+                    <div>
+                        <ErrorMessage message={incomeStatementError} />
+                        <IncomeStatementDisplay data={incomeStatement} ticker={generatedForTicker} />
+                    </div>
+                )}
+
+                {(keyStatisticsData || keyStatisticsError) && (
+                    <div>
+                        <ErrorMessage message={keyStatisticsError} />
+                        <KeyStatisticsDisplay data={keyStatisticsData} ticker={generatedForTicker} />
+                    </div>
                 )}
               </div>
             </div>
