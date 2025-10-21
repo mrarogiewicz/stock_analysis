@@ -21,6 +21,10 @@ const useStockAnalysisGenerator = () => {
   const [isGeneratingWithGemini, setIsGeneratingWithGemini] = useState(false);
   const [geminiError, setGeminiError] = useState(null);
 
+  const [incomeStatement, setIncomeStatement] = useState(null);
+  const [isFetchingIncomeStatement, setIsFetchingIncomeStatement] = useState(false);
+  const [incomeStatementError, setIncomeStatementError] = useState(null);
+
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -34,7 +38,8 @@ const useStockAnalysisGenerator = () => {
     setSaveSuccess(false);
     setGeminiResponse('');
     setGeminiError(null);
-
+    setIncomeStatement(null);
+    setIncomeStatementError(null);
 
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -141,6 +146,31 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedSimpleContent, displayType]);
 
+  const fetchIncomeStatement = useCallback(async () => {
+    if (!generatedForTicker) return;
+
+    setIsFetchingIncomeStatement(true);
+    setIncomeStatementError(null);
+    setIncomeStatement(null);
+
+    try {
+        const res = await fetch(`/api/income-statement?ticker=${generatedForTicker}`);
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to fetch income statement.');
+        }
+
+        setIncomeStatement(data);
+
+    } catch (e) {
+        console.error(e);
+        setIncomeStatementError(e.message);
+    } finally {
+        setIsFetchingIncomeStatement(false);
+    }
+  }, [generatedForTicker]);
+
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -165,6 +195,10 @@ const useStockAnalysisGenerator = () => {
     isGeneratingWithGemini,
     geminiError,
     generateWithGemini,
+    incomeStatement,
+    isFetchingIncomeStatement,
+    incomeStatementError,
+    fetchIncomeStatement,
   };
 };
 
@@ -196,6 +230,12 @@ const CloudUploadIcon = (props) => (
 const AiIcon = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.502L16.5 21.75l-.398-1.248a3.375 3.375 0 00-2.455-2.456L12.75 18l1.248-.398a3.375 3.375 0 002.455-2.456L16.5 14.25l.398 1.248a3.375 3.375 0 002.456 2.456l1.248.398-1.248.398a3.375 3.375 0 00-2.456 2.456z" />
+    </svg>
+);
+
+const DocumentChartBarIcon = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125v-15.75c0-.621.504-1.125 1.125-1.125h14.25c.621 0 1.125.504 1.125 1.125v15.75c0 .621-.504 1.125-1.125 1.125m-17.25 0h.008v.015M7.875 14.25h.008v.015m7.5 0h.008v.015m-4.5-3.375h.008v.015m-1.875-5.25h.008v.015m-1.875 0h.008v.015m1.875-1.5h.008v.015m.75 5.25h.008v.015m3-3.375h.008v.015m-4.5 0h.008v.015" />
     </svg>
 );
 
@@ -293,7 +333,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini }) => {
+const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -462,6 +502,18 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
             )}
           </button>
         )}
+        <button
+            onClick={onFetchIncomeStatement}
+            disabled={isFetchingIncomeStatement}
+            title="Fetch Income Statement"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-green-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
+        >
+            {isFetchingIncomeStatement ? (
+            <Spinner className="w-full h-full text-green-600" />
+            ) : (
+            <DocumentChartBarIcon className="w-full h-full text-green-600" />
+            )}
+        </button>
         {displayType === 'detail' && (
             <button
               onClick={onSaveAnalysis}
@@ -552,6 +604,84 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
     );
 };
 
+const IncomeStatementDisplay = ({ data, ticker }) => {
+    if (!data || !data.annualReports || data.annualReports.length === 0) {
+      return null;
+    }
+  
+    const formatKey = (key) => {
+      if (!key) return '';
+      const result = key.replace(/([A-Z])/g, ' $1');
+      return result.charAt(0).toUpperCase() + result.slice(1);
+    };
+  
+    const formatValue = (value) => {
+      if (value === 'None' || value === null || value === undefined) {
+        return 'N/A';
+      }
+      const num = Number(value);
+      if (!isNaN(num)) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+      }
+      return value;
+    };
+  
+    // Take the 3 most recent reports
+    const reports = data.annualReports.slice(0, 3);
+    const allKeys = reports.reduce((acc, report) => {
+      Object.keys(report).forEach(key => {
+        if (!acc.includes(key) && key !== 'fiscalDateEnding' && key !== 'reportedCurrency') {
+          acc.push(key);
+        }
+      });
+      return acc;
+    }, []);
+  
+    return (
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+        <div className="p-6">
+          <h3 className="text-center font-medium text-gray-700 mb-4">
+            Annual Income Statement for{' '}
+            <span style={{ color: '#38B6FF' }} className="font-bold">
+              {ticker}
+            </span>
+            <span className="block text-xs text-gray-500 mt-1">
+              Currency in {reports[0]?.reportedCurrency || 'USD'}
+            </span>
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-600">
+              <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                <tr>
+                  <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
+                  {reports.map(report => (
+                    <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
+                      {new Date(report.fiscalDateEnding).getFullYear()}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {allKeys.map(key => (
+                  <tr className="bg-white border-b hover:bg-gray-50" key={key}>
+                    <th scope="row" className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10">
+                      {formatKey(key)}
+                    </th>
+                    {reports.map(report => (
+                      <td className="px-4 py-2 text-right" key={`${report.fiscalDateEnding}-${key}`}>
+                        {formatValue(report[key])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
 // --- MAIN APP ---
 const App = () => {
@@ -574,6 +704,10 @@ const App = () => {
     isGeneratingWithGemini,
     geminiError,
     generateWithGemini,
+    incomeStatement,
+    isFetchingIncomeStatement,
+    incomeStatementError,
+    fetchIncomeStatement,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -612,6 +746,8 @@ const App = () => {
                   onDisplayTypeChange={setDisplayType}
                   onGenerateWithGemini={generateWithGemini}
                   isGeneratingWithGemini={isGeneratingWithGemini}
+                  onFetchIncomeStatement={fetchIncomeStatement}
+                  isFetchingIncomeStatement={isFetchingIncomeStatement}
                 />
                 <ErrorMessage message={saveError} />
               </div>
@@ -621,10 +757,16 @@ const App = () => {
           {/* --- RIGHT COLUMN --- */}
           {contentToDisplay && !error && (
             <div className="md:flex-1 min-w-0">
-              <div className="mb-8">
-                <Preview content={contentToDisplay} />
-              </div>
               <div className="space-y-8">
+                <Preview content={contentToDisplay} />
+
+                {(incomeStatement || incomeStatementError) && (
+                    <div>
+                        <ErrorMessage message={incomeStatementError} />
+                        <IncomeStatementDisplay data={incomeStatement} ticker={generatedForTicker} />
+                    </div>
+                )}
+                
                 {(geminiResponse || geminiError) && (
                   <div>
                     <ErrorMessage message={geminiError} />
