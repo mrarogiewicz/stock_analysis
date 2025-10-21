@@ -233,12 +233,6 @@ const AiIcon = (props) => (
     </svg>
 );
 
-const DocumentChartBarIcon = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125v-15.75c0-.621.504-1.125 1.125-1.125h14.25c.621 0 1.125.504 1.125 1.125v15.75c0 .621-.504 1.125-1.125 1.125m-17.25 0h.008v.015M7.875 14.25h.008v.015m7.5 0h.008v.015m-4.5-3.375h.008v.015m-1.875-5.25h.008v.015m-1.875 0h.008v.015m1.875-1.5h.008v.015m.75 5.25h.008v.015m3-3.375h.008v.015m-4.5 0h.008v.015" />
-    </svg>
-);
-
 const Spinner = (props) => (
   <svg
     {...props}
@@ -433,113 +427,118 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
           </button>
       </div>
 
-      <div className="flex items-center justify-center gap-4 flex-wrap md:flex-nowrap">
-        <a
-          href={perplexityUrl}
-          onClick={handlePerplexityClick}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Copy & Open in Perplexity"
-          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-black shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-        >
-          {isPerplexityBusy ? (
-            <CheckIcon className="w-full h-full text-green-500" />
-          ) : (
-            <img
-              src="https://framerusercontent.com/images/gcMkPKyj2RX8EOEja8A1GWvCb7E.jpg"
-              alt="Perplexity Logo"
-              className="w-full h-full object-contain"
-            />
-          )}
-        </a>
-        <a
-          href={geminiUrl}
-          onClick={handleGeminiClick}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Copy & Open in Gemini"
-          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-        >
-          {isGeminiBusy ? (
-            <CheckIcon className="w-full h-full text-green-500" />
-          ) : (
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Google_Gemini_icon_2025.svg/2048px-Google_Gemini_icon_2025.svg.png"
-              alt="Gemini Logo"
-              className="w-full h-full object-contain"
-            />
-          )}
-        </a>
-        <a
-          href={chatGptUrl}
-          onClick={handleChatGptClick}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Copy & Open in ChatGPT"
-          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-        >
-          {isChatGptBusy ? (
-            <CheckIcon className="w-full h-full text-green-500" />
-          ) : (
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/1024px-ChatGPT-Logo.svg.png"
-              alt="ChatGPT Logo"
-              className="w-full h-full object-contain"
-            />
-          )}
-        </a>
-        {displayType === 'simple' && (
-          <button
-            onClick={onGenerateWithGemini}
-            disabled={isGeneratingWithGemini}
-            title="Generate Analysis with Gemini Pro"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-purple-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
-          >
-            {isGeneratingWithGemini ? (
-              <Spinner className="w-full h-full text-purple-600" />
+      <div className="space-y-4">
+        <div className="flex items-center justify-center gap-4 flex-wrap md:flex-nowrap">
+            <a
+            href={perplexityUrl}
+            onClick={handlePerplexityClick}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Copy & Open in Perplexity"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-black shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+            >
+            {isPerplexityBusy ? (
+                <CheckIcon className="w-full h-full text-green-500" />
             ) : (
-              <AiIcon className="w-full h-full text-purple-600" />
+                <img
+                src="https://framerusercontent.com/images/gcMkPKyj2RX8EOEja8A1GWvCb7E.jpg"
+                alt="Perplexity Logo"
+                className="w-full h-full object-contain"
+                />
             )}
-          </button>
-        )}
+            </a>
+            <a
+            href={geminiUrl}
+            onClick={handleGeminiClick}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Copy & Open in Gemini"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+            >
+            {isGeminiBusy ? (
+                <CheckIcon className="w-full h-full text-green-500" />
+            ) : (
+                <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Google_Gemini_icon_2025.svg/2048px-Google_Gemini_icon_2025.svg.png"
+                alt="Gemini Logo"
+                className="w-full h-full object-contain"
+                />
+            )}
+            </a>
+            <a
+            href={chatGptUrl}
+            onClick={handleChatGptClick}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Copy & Open in ChatGPT"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+            >
+            {isChatGptBusy ? (
+                <CheckIcon className="w-full h-full text-green-500" />
+            ) : (
+                <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/1024px-ChatGPT-Logo.svg.png"
+                alt="ChatGPT Logo"
+                className="w-full h-full object-contain"
+                />
+            )}
+            </a>
+            {displayType === 'simple' && (
+            <button
+                onClick={onGenerateWithGemini}
+                disabled={isGeneratingWithGemini}
+                title="Generate Analysis with Gemini Pro"
+                className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-purple-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
+            >
+                {isGeneratingWithGemini ? (
+                <Spinner className="w-full h-full text-purple-600" />
+                ) : (
+                <AiIcon className="w-full h-full text-purple-600" />
+                )}
+            </button>
+            )}
+            
+            {displayType === 'detail' && (
+                <button
+                onClick={onSaveAnalysis}
+                disabled={isSaving || saveSuccess}
+                title="Save to Cloud"
+                className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-blue-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
+                >
+                {isSaving ? (
+                    <Spinner className="w-full h-full text-blue-600" />
+                ) : saveSuccess ? (
+                    <CheckIcon className="w-full h-full text-green-500" />
+                ) : (
+                    <CloudUploadIcon className="w-full h-full text-blue-600" />
+                )}
+                </button>
+            )}
+            <button
+            onClick={handleCopy}
+            title="Copy Prompt"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-gray-200 shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+            >
+            {isCopied ? (
+                <CheckIcon className="w-full h-full text-green-500" />
+            ) : (
+                <CopyIcon className="w-full h-full text-gray-600" />
+            )}
+            </button>
+        </div>
         <button
             onClick={onFetchIncomeStatement}
             disabled={isFetchingIncomeStatement}
-            title="Fetch Income Statement"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-green-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
         >
             {isFetchingIncomeStatement ? (
-            <Spinner className="w-full h-full text-green-600" />
+                <>
+                    <Spinner className="w-5 h-5 text-gray-600" />
+                    <span>Fetching Financials...</span>
+                </>
             ) : (
-            <DocumentChartBarIcon className="w-full h-full text-green-600" />
+                <span>Income Statement</span>
             )}
-        </button>
-        {displayType === 'detail' && (
-            <button
-              onClick={onSaveAnalysis}
-              disabled={isSaving || saveSuccess}
-              title="Save to Cloud"
-              className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-blue-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
-            >
-              {isSaving ? (
-                <Spinner className="w-full h-full text-blue-600" />
-              ) : saveSuccess ? (
-                <CheckIcon className="w-full h-full text-green-500" />
-              ) : (
-                <CloudUploadIcon className="w-full h-full text-blue-600" />
-              )}
-            </button>
-        )}
-        <button
-          onClick={handleCopy}
-          title="Copy Prompt"
-          className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-gray-200 shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-        >
-          {isCopied ? (
-            <CheckIcon className="w-full h-full text-green-500" />
-          ) : (
-            <CopyIcon className="w-full h-full text-gray-600" />
-          )}
         </button>
       </div>
     </div>
