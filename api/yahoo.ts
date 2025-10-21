@@ -1,6 +1,6 @@
 // /api/yahoo.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import yahooFinance from 'yahoo-finance2';
+import { quoteSummary } from 'yahoo-finance2';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ticker = (req.query.ticker as string || 'AAPL').toUpperCase().trim();
@@ -9,16 +9,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // This robustly handles CJS/ESM module interop issues.
-    // The actual library object might be on the .default property.
-    const yahoo = (yahooFinance as any).default || yahooFinance;
-
-    if (typeof yahoo.quoteSummary !== 'function') {
-      console.error("[api/yahoo] 'quoteSummary' is not a function on the imported module.", yahoo);
+    // The named import directly provides the function, resolving previous module issues.
+    if (typeof quoteSummary !== 'function') {
+      // This is a defensive check; the import itself should fail if the function doesn't exist.
+      console.error("[api/yahoo] Critical error: 'quoteSummary' could not be imported as a function.");
       throw new Error("Server configuration error: Failed to load financial data library.");
     }
 
-    const summary = await yahoo.quoteSummary(ticker, { 
+    const summary = await quoteSummary(ticker, { 
         modules: ['financialData', 'defaultKeyStatistics', 'price', 'summaryDetail'] 
     });
     
@@ -38,7 +36,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: errorMessage });
     }
     
-    if (errorMessage.includes('Not Found') || (err as any).code === 404) {
+    // Check for 404-like errors from the library
+    if (errorMessage.includes('Not Found') || (err as any).code === 404 || errorMessage.includes('No data found')) {
         return res.status(404).json({ error: `Data not found for ticker: ${ticker}. It may be an invalid ticker.` });
     }
     
