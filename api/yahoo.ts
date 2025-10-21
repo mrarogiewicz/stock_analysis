@@ -1,6 +1,6 @@
 // /api/yahoo.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import yahooFinance from 'yahoo-finance2';
+import yahooFinanceModule from 'yahoo-finance2';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ticker = (req.query.ticker as string || 'AAPL').toUpperCase().trim();
@@ -9,6 +9,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Handle CJS/ESM interop issues where the actual library object might be on the .default property.
+    const yahooFinance = (yahooFinanceModule as any).default || yahooFinanceModule;
+
     const summary = await yahooFinance.quoteSummary(ticker, { 
         modules: ['financialData', 'defaultKeyStatistics', 'price'] 
     });
