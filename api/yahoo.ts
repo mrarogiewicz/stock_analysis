@@ -8,12 +8,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Use dynamic import to robustly handle module resolution in Vercel's environment.
-    // This pattern is effective for libraries with CJS/ESM compatibility complexities.
-    const yahooFinance = (await import('yahoo-finance2')).default;
+    // This robust import pattern handles various CJS/ESM module interop issues.
+    const module = await import('yahoo-finance2');
+    const yahooFinance = module.default || module;
+
+    // Defensive check to ensure the function exists before calling it.
+    if (typeof yahooFinance.quoteSummary !== 'function') {
+      console.error("yahoo-finance2 module loaded incorrectly. 'quoteSummary' function not found.");
+      return res.status(500).json({ error: "Server configuration error: Failed to load financial data library." });
+    }
 
     const summary = await yahooFinance.quoteSummary(ticker, { 
-        modules: ['financialData', 'defaultKeyStatistics', 'price'] 
+        // Added 'summaryDetail' to get more data like 52-week range and price-to-sales
+        modules: ['financialData', 'defaultKeyStatistics', 'price', 'summaryDetail'] 
     });
     
     // Set a small cache control header
@@ -27,10 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (err) {
     console.error(`Error fetching Yahoo Finance data for ${ticker}:`, err);
-    // yahoo-finance2 often throws specific error messages
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
     
-    // Check for common 'Not Found' errors
     if (errorMessage.includes('Not Found') || (err as any).code === 404) {
         return res.status(404).json({ error: `Data not found for ticker: ${ticker}. It may be an invalid ticker.` });
     }

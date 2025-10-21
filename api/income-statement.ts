@@ -28,7 +28,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(data);
 
     } catch (error) {
-// FIX: Added a missing opening brace for the catch block, which was causing a syntax error.
         const errorMessage = error instanceof Error ? error.message : "An unknown server error occurred.";
         return res.status(500).json({ error: errorMessage });
     }

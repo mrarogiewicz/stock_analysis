@@ -776,7 +776,7 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
 const YahooFinanceDisplay = ({ data, ticker }) => {
     if (!data) return null;
 
-    const { price, financialData, defaultKeyStatistics } = data;
+    const { price, financialData, defaultKeyStatistics, summaryDetail } = data;
 
     const formatValue = (value, type = 'number') => {
         if (value === undefined || value === null) return 'N/A';
@@ -798,8 +798,8 @@ const YahooFinanceDisplay = ({ data, ticker }) => {
 
     const quoteItems = [
         { label: 'Current Price', value: formatValue(price?.regularMarketPrice, 'currency') },
-        { label: 'Day\'s Range', value: `${formatValue(price?.regularMarketDayLow)} - ${formatValue(price?.regularMarketDayHigh)}` },
-        { label: '52-Wk Range', value: `${formatValue(price?.fiftyTwoWeekLow)} - ${formatValue(price?.fiftyTwoWeekHigh)}` },
+        { label: 'Day\'s Range', value: price?.regularMarketDayLow && price?.regularMarketDayHigh ? `${formatValue(price.regularMarketDayLow)} - ${formatValue(price.regularMarketDayHigh)}` : 'N/A' },
+        { label: '52-Wk Range', value: summaryDetail?.fiftyTwoWeekLow && summaryDetail?.fiftyTwoWeekHigh ? `${formatValue(summaryDetail.fiftyTwoWeekLow)} - ${formatValue(summaryDetail.fiftyTwoWeekHigh)}` : 'N/A' },
         { label: 'Market Cap', value: formatValue(price?.marketCap, 'large') },
         { label: 'Volume', value: formatValue(price?.regularMarketVolume, 'large') },
     ];
@@ -808,10 +808,10 @@ const YahooFinanceDisplay = ({ data, ticker }) => {
         { label: 'Trailing P/E', value: formatValue(defaultKeyStatistics?.trailingPE) },
         { label: 'Forward P/E', value: formatValue(defaultKeyStatistics?.forwardPE) },
         { label: 'PEG Ratio', value: formatValue(defaultKeyStatistics?.pegRatio) },
-        { label: 'Price/Sales (ttm)', value: formatValue(defaultKeyStatistics?.priceToSales) },
+        { label: 'Price/Sales (ttm)', value: formatValue(summaryDetail?.priceToSalesTrailing12Months) },
         { label: 'Enterprise Value', value: formatValue(defaultKeyStatistics?.enterpriseValue, 'large') },
-        { label: 'Profit Margin', value: formatValue(financialData?.profitMargins, 'percent') },
-        { label: 'Return on Equity', value: formatValue(financialData?.returnOnEquity, 'percent') },
+        { label: 'Profit Margin', value: formatValue(financialData?.profitMargins) },
+        { label: 'Return on Equity', value: formatValue(financialData?.returnOnEquity) },
         { label: 'Total Revenue', value: formatValue(financialData?.totalRevenue, 'large') },
         { label: 'Gross Profit', value: formatValue(financialData?.grossProfits, 'large') },
     ];
@@ -819,7 +819,7 @@ const YahooFinanceDisplay = ({ data, ticker }) => {
 
     const DataGrid = ({ items }) => (
         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {items.map(item => item.value !== 'N/A' && (
+            {items.filter(item => item.value && item.value !== 'N/A' && item.value !== 'N/A - N/A').map(item => (
                 <React.Fragment key={item.label}>
                     <div className="text-gray-600 font-medium">{item.label}</div>
                     <div className="text-gray-900 text-right font-semibold">{item.value}</div>
