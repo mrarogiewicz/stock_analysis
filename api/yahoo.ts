@@ -1,6 +1,5 @@
 // /api/yahoo.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { quoteSummary } from 'yahoo-finance2';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ticker = (req.query.ticker as string || 'AAPL').toUpperCase().trim();
@@ -9,10 +8,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // The named import directly provides the function, resolving previous module issues.
+    // Use dynamic import for robust module loading in serverless environments.
+    // This moves the loading inside the try...catch block.
+    const yahooFinance = await import('yahoo-finance2');
+    
+    // This handles different CJS/ESM module interop scenarios to find the function.
+    const quoteSummary = yahooFinance.default?.quoteSummary || yahooFinance.quoteSummary;
+
     if (typeof quoteSummary !== 'function') {
-      // This is a defensive check; the import itself should fail if the function doesn't exist.
-      console.error("[api/yahoo] Critical error: 'quoteSummary' could not be imported as a function.");
+      console.error("[api/yahoo] Critical error: 'quoteSummary' could not be imported as a function after dynamic import.");
       throw new Error("Server configuration error: Failed to load financial data library.");
     }
 
@@ -32,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error(`[api/yahoo] Error for ticker ${ticker}:`, err);
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
     
+    // Check for our specific loading error
     if (errorMessage.includes("Failed to load financial data library")) {
         return res.status(500).json({ error: errorMessage });
     }

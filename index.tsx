@@ -186,20 +186,31 @@ const useStockAnalysisGenerator = () => {
     setYahooFinanceData(null);
 
     try {
-        const res = await fetch(`/api/yahoo?ticker=${generatedForTicker}`);
-        const data = await res.json();
-        
-        if (!res.ok) {
-            throw new Error(data.error || 'Failed to fetch data from Yahoo Finance.');
-        }
+      const res = await fetch(`/api/yahoo?ticker=${generatedForTicker}`);
 
-        setYahooFinanceData(data.summary);
+      // Handle non-successful HTTP responses first
+      if (!res.ok) {
+        let errorMsg;
+        // The server might send a JSON error, or it might crash and send HTML.
+        // We need to handle both cases.
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || 'An unknown error occurred while fetching data.';
+        } catch (e) {
+          // This catches the JSON.parse error if the response is not JSON
+          errorMsg = `The server returned an unexpected response: ${res.status} ${res.statusText}`;
+        }
+        throw new Error(errorMsg);
+      }
+
+      const data = await res.json();
+      setYahooFinanceData(data.summary);
 
     } catch (e) {
-        console.error(e);
-        setYahooDataError(e.message);
+      console.error(e);
+      setYahooDataError(e.message);
     } finally {
-        setIsFetchingYahooData(false);
+      setIsFetchingYahooData(false);
     }
   }, [generatedForTicker]);
 
