@@ -1,5 +1,6 @@
 // /api/yahoo.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import yahooFinance from 'yahoo-finance2';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ticker = (req.query.ticker as string || 'AAPL').toUpperCase().trim();
@@ -8,11 +9,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // By placing require() inside the try block, we can catch errors
-    // if the module fails to load, preventing a server crash and the resulting JSON.parse error on the client.
-    const yahooFinance = require('yahoo-finance2');
+    // This robustly handles CJS/ESM module interop issues.
+    // The actual library object might be on the .default property.
+    const yahoo = (yahooFinance as any).default || yahooFinance;
 
-    const summary = await yahooFinance.quoteSummary(ticker, { 
+    if (typeof yahoo.quoteSummary !== 'function') {
+      console.error("[api/yahoo] 'quoteSummary' is not a function on the imported module.", yahoo);
+      throw new Error("Server configuration error: Failed to load financial data library.");
+    }
+
+    const summary = await yahoo.quoteSummary(ticker, { 
         modules: ['financialData', 'defaultKeyStatistics', 'price', 'summaryDetail'] 
     });
     
@@ -28,8 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error(`[api/yahoo] Error for ticker ${ticker}:`, err);
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
     
-    if (errorMessage.includes("Cannot find module 'yahoo-finance2'")) {
-        return res.status(500).json({ error: 'Server dependency error: Could not load the financial data library.' });
+    if (errorMessage.includes("Failed to load financial data library")) {
+        return res.status(500).json({ error: errorMessage });
     }
     
     if (errorMessage.includes('Not Found') || (err as any).code === 404) {
