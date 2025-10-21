@@ -25,10 +25,6 @@ const useStockAnalysisGenerator = () => {
   const [isFetchingIncomeStatement, setIsFetchingIncomeStatement] = useState(false);
   const [incomeStatementError, setIncomeStatementError] = useState(null);
 
-  const [keyStatistics, setKeyStatistics] = useState(null);
-  const [isFetchingKeyStatistics, setIsFetchingKeyStatistics] = useState(false);
-  const [keyStatisticsError, setKeyStatisticsError] = useState(null);
-
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -44,8 +40,6 @@ const useStockAnalysisGenerator = () => {
     setGeminiError(null);
     setIncomeStatement(null);
     setIncomeStatementError(null);
-    setKeyStatistics(null);
-    setKeyStatisticsError(null);
 
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -177,31 +171,6 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker]);
 
-  const fetchKeyStatistics = useCallback(async () => {
-    if (!generatedForTicker) return;
-
-    setIsFetchingKeyStatistics(true);
-    setKeyStatisticsError(null);
-    setKeyStatistics(null);
-
-    try {
-        const res = await fetch(`/api/key-statistics?ticker=${generatedForTicker}`);
-        const data = await res.json();
-        
-        if (!res.ok) {
-            throw new Error(data.error || 'Failed to fetch key statistics.');
-        }
-
-        setKeyStatistics(data);
-
-    } catch (e) {
-        console.error(e);
-        setKeyStatisticsError(e.message);
-    } finally {
-        setIsFetchingKeyStatistics(false);
-    }
-  }, [generatedForTicker]);
-
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -230,10 +199,6 @@ const useStockAnalysisGenerator = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
-    keyStatistics,
-    isFetchingKeyStatistics,
-    keyStatisticsError,
-    fetchKeyStatistics,
   };
 };
 
@@ -362,7 +327,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement, onFetchKeyStatistics, isFetchingKeyStatistics }) => {
+const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -561,36 +526,20 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
             )}
             </button>
         </div>
-        <div className="space-y-2">
-            <button
-                onClick={onFetchIncomeStatement}
-                disabled={isFetchingIncomeStatement}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-            >
-                {isFetchingIncomeStatement ? (
-                    <>
-                        <Spinner className="w-5 h-5 text-gray-600" />
-                        <span>Fetching Financials...</span>
-                    </>
-                ) : (
-                    <span>Income Statement</span>
-                )}
-            </button>
-            <button
-                onClick={onFetchKeyStatistics}
-                disabled={isFetchingKeyStatistics}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-            >
-                {isFetchingKeyStatistics ? (
-                    <>
-                        <Spinner className="w-5 h-5 text-gray-600" />
-                        <span>Fetching Statistics...</span>
-                    </>
-                ) : (
-                    <span>Key Statistics</span>
-                )}
-            </button>
-        </div>
+        <button
+            onClick={onFetchIncomeStatement}
+            disabled={isFetchingIncomeStatement}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+        >
+            {isFetchingIncomeStatement ? (
+                <>
+                    <Spinner className="w-5 h-5 text-gray-600" />
+                    <span>Fetching Financials...</span>
+                </>
+            ) : (
+                <span>Income Statement</span>
+            )}
+        </button>
       </div>
     </div>
   );
@@ -772,52 +721,6 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     );
   };
 
-const KeyStatisticsDisplay = ({ data, ticker }) => {
-    if (!data || data.length === 0) {
-        return (
-            <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6 text-center text-gray-600">
-                Key statistics data not available for {ticker}.
-            </div>
-        );
-    }
-
-    return (
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
-            <div className="p-6">
-                <h3 className="text-center font-medium text-gray-700 mb-6">
-                    Key Statistics for{' '}
-                    <span style={{ color: '#38B6FF' }} className="font-bold">
-                        {ticker}
-                    </span>
-                </h3>
-                <div className="space-y-6">
-                    {data.map((table) => (
-                        <div key={table.title}>
-                            <h4 className="text-md font-semibold text-gray-800 mb-2">{table.title}</h4>
-                            <div className="overflow-x-auto rounded-lg border border-gray-200">
-                                <table className="w-full text-sm text-left text-gray-600">
-                                    <tbody>
-                                        {table.rows.map(([key, value]) => (
-                                            <tr className="bg-white border-b last:border-b-0 hover:bg-gray-50" key={key}>
-                                                <th scope="row" className="px-4 py-2 font-normal text-gray-800 whitespace-nowrap">
-                                                    {key}
-                                                </th>
-                                                <td className="px-4 py-2 text-right font-medium text-gray-900">
-                                                    {value}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 // --- MAIN APP ---
 const App = () => {
@@ -844,10 +747,6 @@ const App = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
-    keyStatistics,
-    isFetchingKeyStatistics,
-    keyStatisticsError,
-    fetchKeyStatistics,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -888,8 +787,6 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchIncomeStatement={fetchIncomeStatement}
                   isFetchingIncomeStatement={isFetchingIncomeStatement}
-                  onFetchKeyStatistics={fetchKeyStatistics}
-                  isFetchingKeyStatistics={isFetchingKeyStatistics}
                 />
                 <ErrorMessage message={saveError} />
               </div>
@@ -906,13 +803,6 @@ const App = () => {
                     <div>
                         <ErrorMessage message={incomeStatementError} />
                         <IncomeStatementDisplay data={incomeStatement} ticker={generatedForTicker} />
-                    </div>
-                )}
-
-                {(keyStatistics || keyStatisticsError) && (
-                    <div>
-                        <ErrorMessage message={keyStatisticsError} />
-                        <KeyStatisticsDisplay data={keyStatistics} ticker={generatedForTicker} />
                     </div>
                 )}
                 
