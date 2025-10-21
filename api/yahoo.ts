@@ -1,5 +1,6 @@
 // /api/yahoo.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { quoteSummary } from 'yahoo-finance2';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ticker = (req.query.ticker as string || 'AAPL').toUpperCase().trim();
@@ -8,17 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // This robust import pattern handles various CJS/ESM module interop issues.
-    const module = await import('yahoo-finance2');
-    const yahooFinance = module.default || module;
-
-    // Defensive check to ensure the function exists before calling it.
-    if (typeof yahooFinance.quoteSummary !== 'function') {
-      console.error("yahoo-finance2 module loaded incorrectly. 'quoteSummary' function not found.");
-      return res.status(500).json({ error: "Server configuration error: Failed to load financial data library." });
-    }
-
-    const summary = await yahooFinance.quoteSummary(ticker, { 
+    const summary = await quoteSummary(ticker, { 
         // Added 'summaryDetail' to get more data like 52-week range and price-to-sales
         modules: ['financialData', 'defaultKeyStatistics', 'price', 'summaryDetail'] 
     });
