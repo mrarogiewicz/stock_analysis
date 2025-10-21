@@ -37,7 +37,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (!yahooResponse.ok) {
-            return res.status(yahooResponse.status).json({ error: `Failed to fetch data from Yahoo Finance. Status: ${yahooResponse.status}` });
+            let errorMessage = `Failed to fetch data from Yahoo Finance. Status: ${yahooResponse.status}`;
+            if (yahooResponse.status === 404) {
+                errorMessage = `Could not find key statistics for ticker "${ticker.toUpperCase()}". This could mean the ticker is invalid, delisted, or does not have statistics available on Yahoo Finance. Please verify the ticker is correct on finance.yahoo.com. (URL attempted: ${url})`;
+            }
+            return res.status(yahooResponse.status).json({ error: errorMessage });
         }
 
         const html = await yahooResponse.text();
