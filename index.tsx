@@ -25,9 +25,9 @@ const useStockAnalysisGenerator = () => {
   const [isFetchingIncomeStatement, setIsFetchingIncomeStatement] = useState(false);
   const [incomeStatementError, setIncomeStatementError] = useState(null);
 
-  const [keyStatisticsData, setKeyStatisticsData] = useState(null);
-  const [isFetchingKeyStatistics, setIsFetchingKeyStatistics] = useState(false);
-  const [keyStatisticsError, setKeyStatisticsError] = useState(null);
+  const [yahooFinanceData, setYahooFinanceData] = useState(null);
+  const [isFetchingYahooData, setIsFetchingYahooData] = useState(false);
+  const [yahooDataError, setYahooDataError] = useState(null);
 
 
   const generateAnalysis = useCallback(async () => {
@@ -44,8 +44,8 @@ const useStockAnalysisGenerator = () => {
     setGeminiError(null);
     setIncomeStatement(null);
     setIncomeStatementError(null);
-    setKeyStatisticsData(null);
-    setKeyStatisticsError(null);
+    setYahooFinanceData(null);
+    setYahooDataError(null);
 
 
     try {
@@ -178,60 +178,28 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker]);
 
-  const fetchKeyStatistics = useCallback(async () => {
+  const fetchYahooFinanceData = useCallback(async () => {
     if (!generatedForTicker) return;
 
-    setIsFetchingKeyStatistics(true);
-    setKeyStatisticsError(null);
-    setKeyStatisticsData(null);
+    setIsFetchingYahooData(true);
+    setYahooDataError(null);
+    setYahooFinanceData(null);
 
     try {
-        const res = await fetch(`/api/income-statement?ticker=${generatedForTicker}&yahooStats=true`);
+        const res = await fetch(`/api/yahoo?ticker=${generatedForTicker}`);
+        const data = await res.json();
         
         if (!res.ok) {
-            const errorData = await res.json().catch(() => ({ error: 'Failed to fetch key statistics from Yahoo Finance.' }));
-            throw new Error(errorData.error || 'Failed to fetch key statistics from Yahoo Finance.');
+            throw new Error(data.error || 'Failed to fetch data from Yahoo Finance.');
         }
 
-        const htmlText = await res.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, 'text/html');
-
-        const sections = doc.querySelectorAll('section[data-test="qsp-statistics"] > div');
-        const tablesData = [];
-        
-        sections.forEach(section => {
-            const titleEl = section.querySelector('h2, h3, h6');
-            const tableEl = section.querySelector('table');
-
-            if (titleEl && tableEl) {
-                const title = titleEl.textContent.trim();
-                const rows = [];
-                
-                tableEl.querySelectorAll('tbody > tr').forEach(tr => {
-                    const cells = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
-                    if (cells.length > 0) {
-                        rows.push(cells);
-                    }
-                });
-
-                if (rows.length > 0) {
-                    tablesData.push({ title, rows });
-                }
-            }
-        });
-        
-        if (tablesData.length === 0) {
-            throw new Error('Could not find or parse key statistics tables. The page structure may have changed or the ticker is invalid.');
-        }
-
-        setKeyStatisticsData(tablesData);
+        setYahooFinanceData(data.summary);
 
     } catch (e) {
         console.error(e);
-        setKeyStatisticsError(e.message);
+        setYahooDataError(e.message);
     } finally {
-        setIsFetchingKeyStatistics(false);
+        setIsFetchingYahooData(false);
     }
   }, [generatedForTicker]);
 
@@ -263,10 +231,10 @@ const useStockAnalysisGenerator = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
-    keyStatisticsData,
-    isFetchingKeyStatistics,
-    keyStatisticsError,
-    fetchKeyStatistics,
+    yahooFinanceData,
+    isFetchingYahooData,
+    yahooDataError,
+    fetchYahooFinanceData,
   };
 };
 
@@ -395,7 +363,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement, onFetchKeyStatistics, isFetchingKeyStatistics }) => {
+const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement, onFetchYahooData, isFetchingYahooData }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -610,17 +578,17 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
                 )}
             </button>
             <button
-                onClick={onFetchKeyStatistics}
-                disabled={isFetchingKeyStatistics}
+                onClick={onFetchYahooData}
+                disabled={isFetchingYahooData}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
             >
-                {isFetchingKeyStatistics ? (
+                {isFetchingYahooData ? (
                     <>
                         <Spinner className="w-5 h-5 text-gray-600" />
-                        <span>Fetching Key Stats...</span>
+                        <span>Fetching Yahoo Data...</span>
                     </>
                 ) : (
-                    <span>Key Statistics</span>
+                    <span>Yahoo Finance Stats</span>
                 )}
             </button>
         </div>
@@ -803,41 +771,84 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         </div>
       </div>
     );
-  };
+};
 
-const KeyStatisticsDisplay = ({ data, ticker }) => {
+const YahooFinanceDisplay = ({ data, ticker }) => {
     if (!data) return null;
+
+    const { price, financialData, defaultKeyStatistics } = data;
+
+    const formatValue = (value, type = 'number') => {
+        if (value === undefined || value === null) return 'N/A';
+        if (typeof value === 'object' && value.fmt) return value.fmt;
+        if (typeof value === 'object' && value.longFmt) return value.longFmt;
+        if (typeof value === 'number') {
+            if (type === 'currency') {
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+            }
+            if (type === 'large') {
+                 if (Math.abs(value) >= 1e12) return `${(value / 1e12).toFixed(2)}T`;
+                 if (Math.abs(value) >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+                 if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+            }
+            return new Intl.NumberFormat('en-US').format(value);
+        }
+        return value;
+    };
+
+    const quoteItems = [
+        { label: 'Current Price', value: formatValue(price?.regularMarketPrice, 'currency') },
+        { label: 'Day\'s Range', value: `${formatValue(price?.regularMarketDayLow)} - ${formatValue(price?.regularMarketDayHigh)}` },
+        { label: '52-Wk Range', value: `${formatValue(price?.fiftyTwoWeekLow)} - ${formatValue(price?.fiftyTwoWeekHigh)}` },
+        { label: 'Market Cap', value: formatValue(price?.marketCap, 'large') },
+        { label: 'Volume', value: formatValue(price?.regularMarketVolume, 'large') },
+    ];
+    
+    const financialItems = [
+        { label: 'Trailing P/E', value: formatValue(defaultKeyStatistics?.trailingPE) },
+        { label: 'Forward P/E', value: formatValue(defaultKeyStatistics?.forwardPE) },
+        { label: 'PEG Ratio', value: formatValue(defaultKeyStatistics?.pegRatio) },
+        { label: 'Price/Sales (ttm)', value: formatValue(defaultKeyStatistics?.priceToSales) },
+        { label: 'Enterprise Value', value: formatValue(defaultKeyStatistics?.enterpriseValue, 'large') },
+        { label: 'Profit Margin', value: formatValue(financialData?.profitMargins, 'percent') },
+        { label: 'Return on Equity', value: formatValue(financialData?.returnOnEquity, 'percent') },
+        { label: 'Total Revenue', value: formatValue(financialData?.totalRevenue, 'large') },
+        { label: 'Gross Profit', value: formatValue(financialData?.grossProfits, 'large') },
+    ];
+
+
+    const DataGrid = ({ items }) => (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {items.map(item => item.value !== 'N/A' && (
+                <React.Fragment key={item.label}>
+                    <div className="text-gray-600 font-medium">{item.label}</div>
+                    <div className="text-gray-900 text-right font-semibold">{item.value}</div>
+                </React.Fragment>
+            ))}
+        </div>
+    );
 
     return (
         <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
             <div className="p-6">
                 <h3 className="text-center font-medium text-gray-700 mb-4">
-                    Key Statistics for{' '}
+                    Yahoo Finance Data for{' '}
                     <span style={{ color: '#38B6FF' }} className="font-bold">
                         {ticker}
                     </span>
+                    <span className="block text-xs text-gray-500 mt-1">
+                        {price?.longName || ''}
+                    </span>
                 </h3>
-                <div className="space-y-6 max-h-[40rem] overflow-y-auto pr-2">
-                    {data.map((table, index) => (
-                        <div key={index}>
-                            <h4 className="text-md font-semibold text-gray-800 mb-2">{table.title}</h4>
-                            <div className="overflow-x-auto rounded-lg border border-gray-200">
-                                <table className="w-full text-sm text-left text-gray-600">
-                                    <tbody className="divide-y divide-gray-200">
-                                        {table.rows.map((row, rowIndex) => (
-                                            <tr className="bg-white hover:bg-gray-50" key={rowIndex}>
-                                                {row.map((cell, cellIndex) => (
-                                                    <td className={`px-4 py-2 ${cellIndex === 0 ? 'font-medium text-gray-900' : ''}`} key={cellIndex}>
-                                                        {cell}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    ))}
+                <div className="space-y-6">
+                    {price && <div>
+                        <h4 className="text-md font-semibold text-gray-800 mb-2 border-b pb-1">Quote Summary</h4>
+                        <DataGrid items={quoteItems} />
+                    </div>}
+                    {(financialData || defaultKeyStatistics) && <div>
+                        <h4 className="text-md font-semibold text-gray-800 mb-2 border-b pb-1">Key Statistics</h4>
+                        <DataGrid items={financialItems} />
+                    </div>}
                 </div>
             </div>
         </div>
@@ -870,10 +881,10 @@ const App = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
-    keyStatisticsData,
-    isFetchingKeyStatistics,
-    keyStatisticsError,
-    fetchKeyStatistics,
+    yahooFinanceData,
+    isFetchingYahooData,
+    yahooDataError,
+    fetchYahooFinanceData,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -914,8 +925,8 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchIncomeStatement={fetchIncomeStatement}
                   isFetchingIncomeStatement={isFetchingIncomeStatement}
-                  onFetchKeyStatistics={fetchKeyStatistics}
-                  isFetchingKeyStatistics={isFetchingKeyStatistics}
+                  onFetchYahooData={fetchYahooFinanceData}
+                  isFetchingYahooData={isFetchingYahooData}
                 />
                 <ErrorMessage message={saveError} />
               </div>
@@ -942,10 +953,10 @@ const App = () => {
                     </div>
                 )}
 
-                {(keyStatisticsData || keyStatisticsError) && (
+                {(yahooFinanceData || yahooDataError) && (
                     <div>
-                        <ErrorMessage message={keyStatisticsError} />
-                        <KeyStatisticsDisplay data={keyStatisticsData} ticker={generatedForTicker} />
+                        <ErrorMessage message={yahooDataError} />
+                        <YahooFinanceDisplay data={yahooFinanceData} ticker={generatedForTicker} />
                     </div>
                 )}
               </div>
