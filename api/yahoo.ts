@@ -1,10 +1,6 @@
 // /api/yahoo.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Use require for robust CJS module loading in a Node.js serverless environment.
-// This is more stable than ES6 imports for certain libraries.
-const yahooFinance = require('yahoo-finance2');
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ticker = (req.query.ticker as string || 'AAPL').toUpperCase().trim();
   if (!ticker) {
@@ -12,15 +8,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Defensively access the quoteSummary function, which may be on the default export
-    const quoteSummaryFn = yahooFinance.default?.quoteSummary || yahooFinance.quoteSummary;
-    
-    if (typeof quoteSummaryFn !== 'function') {
-        // This will now be a clean JSON error response instead of a server crash
-        return res.status(500).json({ error: 'Server configuration error: Financial data library failed to load.' });
-    }
+    // By placing require() inside the try block, we can catch errors
+    // if the module fails to load, preventing a server crash and the resulting JSON.parse error on the client.
+    const yahooFinance = require('yahoo-finance2');
 
-    const summary = await quoteSummaryFn(ticker, { 
+    const summary = await yahooFinance.quoteSummary(ticker, { 
         modules: ['financialData', 'defaultKeyStatistics', 'price', 'summaryDetail'] 
     });
     
@@ -33,14 +25,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (err) {
-    console.error(`Error fetching Yahoo Finance data for ${ticker}:`, err);
+    console.error(`[api/yahoo] Error for ticker ${ticker}:`, err);
     const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+    
+    if (errorMessage.includes("Cannot find module 'yahoo-finance2'")) {
+        return res.status(500).json({ error: 'Server dependency error: Could not load the financial data library.' });
+    }
     
     if (errorMessage.includes('Not Found') || (err as any).code === 404) {
         return res.status(404).json({ error: `Data not found for ticker: ${ticker}. It may be an invalid ticker.` });
     }
     
-    // Ensure all error paths return valid JSON
-    return res.status(500).json({ error: errorMessage });
+    return res.status(500).json({ error: `An unexpected error occurred while fetching Yahoo Finance data: ${errorMessage}` });
   }
 }
