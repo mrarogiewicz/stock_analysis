@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (yahooStats === 'true') {
-        const url = `https://finance.yahoo.com/quote/${ticker}/key-statistics/`;
+        const url = `https://finance.yahoo.com/quote/${ticker}/key-statistics?p=${ticker}`;
         try {
             // Fetch with a user-agent to mimic a browser
             const yahooResponse = await fetch(url, {
