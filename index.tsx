@@ -605,15 +605,28 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
 };
 
 const IncomeStatementDisplay = ({ data, ticker }) => {
-    if (!data || !data.annualReports || data.annualReports.length === 0) {
-      return null;
+    const [reportType, setReportType] = useState('annual'); // 'annual' or 'quarterly'
+
+    const hasAnnualData = data?.annualReports?.length > 0;
+    const hasQuarterlyData = data?.quarterlyReports?.length > 0;
+
+    // Default to annual if it exists, otherwise quarterly.
+    React.useEffect(() => {
+        if (hasAnnualData) {
+            setReportType('annual');
+        } else if (hasQuarterlyData) {
+            setReportType('quarterly');
+        }
+    }, [hasAnnualData, hasQuarterlyData]);
+
+    if (!data || (!hasAnnualData && !hasQuarterlyData)) {
+        if (!data) return null; // Don't show anything if data object doesn't exist yet
+        return (
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6 text-center text-gray-600">
+                Income statement data not available for {ticker}.
+            </div>
+        );
     }
-  
-    const formatKey = (key) => {
-      if (!key) return '';
-      const result = key.replace(/([A-Z])/g, ' $1');
-      return result.charAt(0).toUpperCase() + result.slice(1);
-    };
   
     const formatValue = (value) => {
       if (value === 'None' || value === null || value === undefined) {
@@ -626,22 +639,19 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
       return value;
     };
   
-    // Take the 3 most recent reports
-    const reports = data.annualReports.slice(0, 3);
-    const allKeys = reports.reduce((acc, report) => {
-      Object.keys(report).forEach(key => {
-        if (!acc.includes(key) && key !== 'fiscalDateEnding' && key !== 'reportedCurrency') {
-          acc.push(key);
-        }
-      });
-      return acc;
-    }, []);
+    const metricsToShow = {
+        'totalRevenue': 'Total Revenue',
+        'grossProfit': 'Gross Profit',
+        'netIncome': 'Net Income'
+    };
+
+    const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, 4) || [];
   
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
-          <h3 className="text-center font-medium text-gray-700 mb-4">
-            Annual Income Statement for{' '}
+          <h3 className="text-center font-medium text-gray-700 mb-2">
+            Income Statement for{' '}
             <span style={{ color: '#38B6FF' }} className="font-bold">
               {ticker}
             </span>
@@ -649,34 +659,64 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
               Currency in {reports[0]?.reportedCurrency || 'USD'}
             </span>
           </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-600">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-                <tr>
-                  <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
-                  {reports.map(report => (
-                    <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
-                      {new Date(report.fiscalDateEnding).getFullYear()}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {allKeys.map(key => (
-                  <tr className="bg-white border-b hover:bg-gray-50" key={key}>
-                    <th scope="row" className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10">
-                      {formatKey(key)}
-                    </th>
-                    {reports.map(report => (
-                      <td className="px-4 py-2 text-right" key={`${report.fiscalDateEnding}-${key}`}>
-                        {formatValue(report[key])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          
+          <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-lg p-1 my-5">
+              <button
+                  type="button"
+                  onClick={() => setReportType('annual')}
+                  disabled={!hasAnnualData}
+                  aria-pressed={reportType === 'annual'}
+                  className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                  reportType === 'annual' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+                  }`}
+              >
+                  Annual
+              </button>
+              <button
+                  type="button"
+                  onClick={() => setReportType('quarterly')}
+                  disabled={!hasQuarterlyData}
+                  aria-pressed={reportType === 'quarterly'}
+                  className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                  reportType === 'quarterly' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+                  }`}
+              >
+                  Quarterly
+              </button>
           </div>
+
+          {reports.length > 0 ? (
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-600">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                    <tr>
+                    <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
+                    {reports.map(report => (
+                        <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
+                        {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : report.fiscalDateEnding}
+                        </th>
+                    ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {Object.entries(metricsToShow).map(([key, displayName]) => (
+                    <tr className="bg-white border-b hover:bg-gray-50" key={key}>
+                        <th scope="row" className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10">
+                        {displayName}
+                        </th>
+                        {reports.map(report => (
+                        <td className="px-4 py-2 text-right" key={`${report.fiscalDateEnding}-${key}`}>
+                            {formatValue(report[key])}
+                        </td>
+                        ))}
+                    </tr>
+                    ))}
+                </tbody>
+                </table>
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 mt-4">No {reportType} data available.</p>
+          )}
         </div>
       </div>
     );
