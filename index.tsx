@@ -25,10 +25,6 @@ const useStockAnalysisGenerator = () => {
   const [isFetchingIncomeStatement, setIsFetchingIncomeStatement] = useState(false);
   const [incomeStatementError, setIncomeStatementError] = useState(null);
 
-  const [yahooFinanceData, setYahooFinanceData] = useState(null);
-  const [isFetchingYahooData, setIsFetchingYahooData] = useState(false);
-  const [yahooDataError, setYahooDataError] = useState(null);
-
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -44,8 +40,6 @@ const useStockAnalysisGenerator = () => {
     setGeminiError(null);
     setIncomeStatement(null);
     setIncomeStatementError(null);
-    setYahooFinanceData(null);
-    setYahooDataError(null);
 
 
     try {
@@ -178,42 +172,6 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker]);
 
-  const fetchYahooFinanceData = useCallback(async () => {
-    if (!generatedForTicker) return;
-
-    setIsFetchingYahooData(true);
-    setYahooDataError(null);
-    setYahooFinanceData(null);
-
-    try {
-      const res = await fetch(`/api/yahoo?ticker=${generatedForTicker}`);
-
-      // Handle non-successful HTTP responses first
-      if (!res.ok) {
-        let errorMsg;
-        // The server might send a JSON error, or it might crash and send HTML.
-        // We need to handle both cases.
-        try {
-          const errorData = await res.json();
-          errorMsg = errorData.error || 'An unknown error occurred while fetching data.';
-        } catch (e) {
-          // This catches the JSON.parse error if the response is not JSON
-          errorMsg = `The server returned an unexpected response: ${res.status} ${res.statusText}`;
-        }
-        throw new Error(errorMsg);
-      }
-
-      const data = await res.json();
-      setYahooFinanceData(data.summary);
-
-    } catch (e) {
-      console.error(e);
-      setYahooDataError(e.message);
-    } finally {
-      setIsFetchingYahooData(false);
-    }
-  }, [generatedForTicker]);
-
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -242,10 +200,6 @@ const useStockAnalysisGenerator = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
-    yahooFinanceData,
-    isFetchingYahooData,
-    yahooDataError,
-    fetchYahooFinanceData,
   };
 };
 
@@ -374,7 +328,7 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement, onFetchYahooData, isFetchingYahooData }) => {
+const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -588,20 +542,6 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
                     <span>Income Statement</span>
                 )}
             </button>
-            <button
-                onClick={onFetchYahooData}
-                disabled={isFetchingYahooData}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-            >
-                {isFetchingYahooData ? (
-                    <>
-                        <Spinner className="w-5 h-5 text-gray-600" />
-                        <span>Fetching Yahoo Data...</span>
-                    </>
-                ) : (
-                    <span>Yahoo Finance Stats</span>
-                )}
-            </button>
         </div>
       </div>
     </div>
@@ -784,88 +724,6 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     );
 };
 
-const YahooFinanceDisplay = ({ data, ticker }) => {
-    if (!data) return null;
-
-    const { price, financialData, defaultKeyStatistics, summaryDetail } = data;
-
-    const formatValue = (value, type = 'number') => {
-        if (value === undefined || value === null) return 'N/A';
-        if (typeof value === 'object' && value.fmt) return value.fmt;
-        if (typeof value === 'object' && value.longFmt) return value.longFmt;
-        if (typeof value === 'number') {
-            if (type === 'currency') {
-                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
-            }
-            if (type === 'large') {
-                 if (Math.abs(value) >= 1e12) return `${(value / 1e12).toFixed(2)}T`;
-                 if (Math.abs(value) >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
-                 if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
-            }
-            return new Intl.NumberFormat('en-US').format(value);
-        }
-        return value;
-    };
-
-    const quoteItems = [
-        { label: 'Current Price', value: formatValue(price?.regularMarketPrice, 'currency') },
-        { label: 'Day\'s Range', value: price?.regularMarketDayLow && price?.regularMarketDayHigh ? `${formatValue(price.regularMarketDayLow)} - ${formatValue(price.regularMarketDayHigh)}` : 'N/A' },
-        { label: '52-Wk Range', value: summaryDetail?.fiftyTwoWeekLow && summaryDetail?.fiftyTwoWeekHigh ? `${formatValue(summaryDetail.fiftyTwoWeekLow)} - ${formatValue(summaryDetail.fiftyTwoWeekHigh)}` : 'N/A' },
-        { label: 'Market Cap', value: formatValue(price?.marketCap, 'large') },
-        { label: 'Volume', value: formatValue(price?.regularMarketVolume, 'large') },
-    ];
-    
-    const financialItems = [
-        { label: 'Trailing P/E', value: formatValue(defaultKeyStatistics?.trailingPE) },
-        { label: 'Forward P/E', value: formatValue(defaultKeyStatistics?.forwardPE) },
-        { label: 'PEG Ratio', value: formatValue(defaultKeyStatistics?.pegRatio) },
-        { label: 'Price/Sales (ttm)', value: formatValue(summaryDetail?.priceToSalesTrailing12Months) },
-        { label: 'Enterprise Value', value: formatValue(defaultKeyStatistics?.enterpriseValue, 'large') },
-        { label: 'Profit Margin', value: formatValue(financialData?.profitMargins) },
-        { label: 'Return on Equity', value: formatValue(financialData?.returnOnEquity) },
-        { label: 'Total Revenue', value: formatValue(financialData?.totalRevenue, 'large') },
-        { label: 'Gross Profit', value: formatValue(financialData?.grossProfits, 'large') },
-    ];
-
-
-    const DataGrid = ({ items }) => (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {items.filter(item => item.value && item.value !== 'N/A' && item.value !== 'N/A - N/A').map(item => (
-                <React.Fragment key={item.label}>
-                    <div className="text-gray-600 font-medium">{item.label}</div>
-                    <div className="text-gray-900 text-right font-semibold">{item.value}</div>
-                </React.Fragment>
-            ))}
-        </div>
-    );
-
-    return (
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
-            <div className="p-6">
-                <h3 className="text-center font-medium text-gray-700 mb-4">
-                    Yahoo Finance Data for{' '}
-                    <span style={{ color: '#38B6FF' }} className="font-bold">
-                        {ticker}
-                    </span>
-                    <span className="block text-xs text-gray-500 mt-1">
-                        {price?.longName || ''}
-                    </span>
-                </h3>
-                <div className="space-y-6">
-                    {price && <div>
-                        <h4 className="text-md font-semibold text-gray-800 mb-2 border-b pb-1">Quote Summary</h4>
-                        <DataGrid items={quoteItems} />
-                    </div>}
-                    {(financialData || defaultKeyStatistics) && <div>
-                        <h4 className="text-md font-semibold text-gray-800 mb-2 border-b pb-1">Key Statistics</h4>
-                        <DataGrid items={financialItems} />
-                    </div>}
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 // --- MAIN APP ---
 const App = () => {
@@ -892,10 +750,6 @@ const App = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
-    yahooFinanceData,
-    isFetchingYahooData,
-    yahooDataError,
-    fetchYahooFinanceData,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -936,8 +790,6 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchIncomeStatement={fetchIncomeStatement}
                   isFetchingIncomeStatement={isFetchingIncomeStatement}
-                  onFetchYahooData={fetchYahooFinanceData}
-                  isFetchingYahooData={isFetchingYahooData}
                 />
                 <ErrorMessage message={saveError} />
               </div>
@@ -964,12 +816,6 @@ const App = () => {
                     </div>
                 )}
 
-                {(yahooFinanceData || yahooDataError) && (
-                    <div>
-                        <ErrorMessage message={yahooDataError} />
-                        <YahooFinanceDisplay data={yahooFinanceData} ticker={generatedForTicker} />
-                    </div>
-                )}
               </div>
             </div>
           )}
