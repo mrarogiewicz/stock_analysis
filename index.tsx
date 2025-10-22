@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -303,6 +302,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
           onChange={(e) => setTicker(e.target.value)}
           placeholder="e.g., AAPL"
           maxLength={10}
+          autoFocus
           className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200 text-center"
         />
       </div>
@@ -691,36 +691,38 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
-          <h3 className="text-center font-medium text-gray-700 mb-5">
-            Income Statement for{' '}
-            <span style={{ color: '#38B6FF' }} className="font-bold">
-              {ticker}
-            </span>
-          </h3>
-          
-          <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-lg p-1 my-5">
-              <button
-                  type="button"
-                  onClick={() => setReportType('annual')}
-                  disabled={!hasAnnualData}
-                  aria-pressed={reportType === 'annual'}
-                  className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                  reportType === 'annual' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-                  }`}
-              >
-                  Annual
-              </button>
-              <button
-                  type="button"
-                  onClick={() => setReportType('quarterly')}
-                  disabled={!hasQuarterlyData}
-                  aria-pressed={reportType === 'quarterly'}
-                  className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                  reportType === 'quarterly' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-                  }`}
-              >
-                  Quarterly
-              </button>
+            <div className="flex justify-between items-center mb-5">
+                <h3 className="font-medium text-gray-700">
+                    Income Statement for{' '}
+                    <span style={{ color: '#38B6FF' }} className="font-bold">
+                    {ticker}
+                    </span>
+                </h3>
+                
+                <div className="flex bg-gray-200/80 rounded-lg p-1">
+                    <button
+                        type="button"
+                        onClick={() => setReportType('annual')}
+                        disabled={!hasAnnualData}
+                        aria-pressed={reportType === 'annual'}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                        reportType === 'annual' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+                        }`}
+                    >
+                        Annual
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setReportType('quarterly')}
+                        disabled={!hasQuarterlyData}
+                        aria-pressed={reportType === 'quarterly'}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                        reportType === 'quarterly' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+                        }`}
+                    >
+                        Quarterly
+                    </button>
+                </div>
           </div>
 
           {reports.length > 0 ? (
@@ -790,17 +792,18 @@ const App = () => {
 
   const isTickerPresent = ticker.trim().length > 0;
   const contentToDisplay = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
+  const hasContent = !!(contentToDisplay && !error);
 
   return (
-    <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800">
-      <div className="container mx-auto px-2 py-8">
+    <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800 flex flex-col">
+      <div className="container mx-auto px-2 py-8 flex flex-col flex-grow">
         <Header isTickerPresent={isTickerPresent} />
 
-        <div className="md:flex md:gap-8">
+        <div className={`md:flex md:gap-8 flex-grow ${hasContent ? 'md:items-start' : 'md:items-center md:justify-center'}`}>
           
           {/* --- LEFT COLUMN --- */}
-          <div className="md:w-fit md:flex-shrink-0">
-            <div className="max-w-md mx-auto md:max-w-none md:mx-0 mb-8">
+          <div className={`md:w-fit md:flex-shrink-0 ${!hasContent ? 'max-w-md w-full' : ''}`}>
+            <div className={`mx-auto md:max-w-none md:mx-0 mb-8 ${hasContent ? 'max-w-md' : ''}`}>
                 <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
                     <InputForm
                         ticker={ticker}
@@ -812,7 +815,7 @@ const App = () => {
                 </div>
             </div>
 
-            {contentToDisplay && !error && (
+            {hasContent && (
               <div className="mb-8 md:mb-0">
                 <SuccessDisplay 
                   ticker={generatedForTicker} 
@@ -833,7 +836,7 @@ const App = () => {
           </div>
           
           {/* --- RIGHT COLUMN --- */}
-          {contentToDisplay && !error && (
+          {hasContent && (
             <div className="md:flex-1 min-w-0">
               <div className="space-y-8">
                 <Preview content={contentToDisplay} />
