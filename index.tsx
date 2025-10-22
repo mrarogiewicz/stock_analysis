@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -647,10 +648,16 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         return 'N/A';
       }
       const num = Number(value);
-      if (!isNaN(num)) {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+      if (isNaN(num)) {
+          return value;
       }
-      return value;
+      const millions = num / 1000000;
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(millions) + 'M';
     };
   
     const metricsToShow = {
@@ -659,7 +666,8 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         'netIncome': 'Net Income'
     };
 
-    const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, 4) || [];
+    const reportsToShow = reportType === 'annual' ? 5 : 8;
+    const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, reportsToShow) || [];
     
     const calculateGrowth = (current, previous) => {
         if (current === 'None' || previous === 'None' || previous == 0) return null;
@@ -681,7 +689,7 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
               {ticker}
             </span>
             <span className="block text-xs text-gray-500 mt-1">
-              Currency in {reports.length > 0 ? reports[0]?.reportedCurrency : 'USD'}
+              All values in millions of {reports.length > 0 ? reports[0]?.reportedCurrency : 'USD'}
             </span>
              <span className="block text-xs text-gray-500 mt-1 font-normal">
                 With {reportType === 'annual' ? 'Year-over-Year' : 'Quarter-over-Quarter'} Growth
