@@ -621,6 +621,8 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
 
 const IncomeStatementDisplay = ({ data, ticker }) => {
     const [reportType, setReportType] = useState('annual'); // 'annual' or 'quarterly'
+    const [visibleColumns, setVisibleColumns] = useState(6); // Default for SSR and initial render
+    const tableContainerRef = React.useRef(null);
 
     const hasAnnualData = data?.annualReports?.length > 0;
     const hasQuarterlyData = data?.quarterlyReports?.length > 0;
@@ -633,6 +635,32 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
             setReportType('quarterly');
         }
     }, [hasAnnualData, hasQuarterlyData]);
+
+    // Effect to dynamically calculate the number of columns that can fit in the desktop view
+    React.useEffect(() => {
+        const calculateColumns = () => {
+            if (tableContainerRef.current) {
+                // Estimated widths for columns, can be adjusted for precision
+                const METRIC_COL_WIDTH = 150; // Approx. width for the sticky 'Metric' column
+                const DATA_COL_WIDTH = 120;   // Approx. width for each data (year/quarter) column
+
+                const containerWidth = tableContainerRef.current.offsetWidth;
+                const availableWidthForData = containerWidth - METRIC_COL_WIDTH;
+                
+                const numCols = Math.floor(availableWidthForData / DATA_COL_WIDTH);
+                
+                // Ensure we show at least one column if possible
+                setVisibleColumns(Math.max(1, numCols));
+            }
+        };
+
+        // Calculate columns on mount and on window resize
+        calculateColumns();
+        window.addEventListener('resize', calculateColumns);
+
+        // Cleanup listener
+        return () => window.removeEventListener('resize', calculateColumns);
+    }, []); // Empty dependency array ensures this runs only on mount and cleans up on unmount
 
     if (!data || (!hasAnnualData && !hasQuarterlyData)) {
         if (!data) return null; // Don't show anything if data object doesn't exist yet
@@ -685,8 +713,14 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         'netIncome': 'Net Income'
     };
 
-    const reportsToShow = reportType === 'annual' ? 5 : 6;
-    const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, reportsToShow) || [];
+    const allReports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports) || [];
+
+    // For desktop: dynamically sliced based on available width
+    const desktopReports = allReports.slice(0, visibleColumns);
+
+    // For mobile: use the original fixed number of reports
+    const mobileReportsToShow = reportType === 'annual' ? 5 : 6;
+    const mobileReports = allReports.slice(0, mobileReportsToShow);
   
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
@@ -720,17 +754,17 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                         Quarterly
                     </button>
                 </div>
-          </div>
+            </div>
 
-          {reports.length > 0 ? (
+          {allReports.length > 0 ? (
             <>
-                {/* Desktop Table View */}
-                <div className="overflow-x-auto hidden md:block">
+                {/* Desktop Table View - columns are now dynamic, no horizontal scroll */}
+                <div ref={tableContainerRef} className="hidden md:block">
                     <table className="w-full text-sm text-left text-gray-600">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-100">
                         <tr>
                         <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
-                        {reports.map(report => (
+                        {desktopReports.map(report => (
                             <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
                             {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : formatQuarter(report.fiscalDateEnding)}
                             </th>
@@ -743,7 +777,7 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                             <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
                             {displayName}
                             </th>
-                            {reports.map((report) => (
+                            {desktopReports.map((report) => (
                                 <td className="px-4 py-3 text-right align-top" key={`${report.fiscalDateEnding}-${key}`}>
                                     {formatValue(report[key])}
                                 </td>
@@ -754,9 +788,9 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                     </table>
                 </div>
 
-                {/* Mobile Card View */}
+                {/* Mobile Card View - remains unchanged */}
                 <div className="block md:hidden space-y-4">
-                    {reports.map(report => (
+                    {mobileReports.map(report => (
                         <div key={report.fiscalDateEnding} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
                             <h4 className="font-semibold text-base text-gray-800 mb-3 pb-2 border-b border-gray-200">
                                 {reportType === 'annual' ? `Year ${new Date(report.fiscalDateEnding).getFullYear()}` : formatQuarter(report.fiscalDateEnding)}
