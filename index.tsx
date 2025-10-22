@@ -651,13 +651,23 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
       if (isNaN(num)) {
           return value;
       }
-      const millions = num / 1000000;
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(millions) + 'M';
+      
+      if (Math.abs(num) >= 1000000) {
+        const millions = num / 1000000;
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(millions) + 'M';
+      } else {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(num);
+      }
     };
 
     const formatQuarter = (dateString) => {
@@ -677,17 +687,6 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
 
     const reportsToShow = reportType === 'annual' ? 5 : 8;
     const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, reportsToShow) || [];
-    
-    const calculateGrowth = (current, previous) => {
-        if (current === 'None' || previous === 'None' || previous == 0) return null;
-        
-        const currentNum = Number(current);
-        const previousNum = Number(previous);
-
-        if (isNaN(currentNum) || isNaN(previousNum)) return null;
-
-        return ((currentNum - previousNum) / Math.abs(previousNum)) * 100;
-    };
   
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
@@ -743,21 +742,11 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                         <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
                         {displayName}
                         </th>
-                        {reports.map((report, index) => {
-                            const previousReport = reports[index + 1];
-                            const growth = previousReport ? calculateGrowth(report[key], previousReport[key]) : null;
-
-                            return (
-                                <td className="px-4 py-3 text-right" key={`${report.fiscalDateEnding}-${key}`}>
-                                    <div>{formatValue(report[key])}</div>
-                                    {growth !== null && (
-                                        <div className={`mt-0.5 text-xs ${growth >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                            {growth > 0 ? '+' : ''}{growth.toFixed(1)}%
-                                        </div>
-                                    )}
-                                </td>
-                            );
-                        })}
+                        {reports.map((report) => (
+                            <td className="px-4 py-3 text-right align-top" key={`${report.fiscalDateEnding}-${key}`}>
+                                {formatValue(report[key])}
+                            </td>
+                        ))}
                     </tr>
                     ))}
                 </tbody>
