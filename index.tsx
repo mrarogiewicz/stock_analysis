@@ -659,6 +659,15 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         maximumFractionDigits: 0,
       }).format(millions) + 'M';
     };
+
+    const formatQuarter = (dateString) => {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString; // Fallback for invalid dates
+        const year = date.getFullYear();
+        const month = date.getMonth(); // 0-11
+        const quarter = Math.floor(month / 3) + 1;
+        return `${year}Q${quarter}`;
+    };
   
     const metricsToShow = {
         'totalRevenue': 'Total Revenue',
@@ -683,16 +692,10 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
-          <h3 className="text-center font-medium text-gray-700 mb-2">
+          <h3 className="text-center font-medium text-gray-700 mb-5">
             Income Statement for{' '}
             <span style={{ color: '#38B6FF' }} className="font-bold">
               {ticker}
-            </span>
-            <span className="block text-xs text-gray-500 mt-1">
-              All values in millions of {reports.length > 0 ? reports[0]?.reportedCurrency : 'USD'}
-            </span>
-             <span className="block text-xs text-gray-500 mt-1 font-normal">
-                With {reportType === 'annual' ? 'Year-over-Year' : 'Quarter-over-Quarter'} Growth
             </span>
           </h3>
           
@@ -729,7 +732,7 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                     <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
                     {reports.map(report => (
                         <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
-                        {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : report.fiscalDateEnding}
+                        {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : formatQuarter(report.fiscalDateEnding)}
                         </th>
                     ))}
                     </tr>
@@ -748,11 +751,8 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                                 <td className="px-4 py-3 text-right" key={`${report.fiscalDateEnding}-${key}`}>
                                     <div>{formatValue(report[key])}</div>
                                     {growth !== null && (
-                                        <div className={`mt-1 flex items-center justify-end text-xs font-semibold ${growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {growth >= 0 ? 
-                                                <ArrowUpIcon className="w-3 h-3 mr-0.5" /> : 
-                                                <ArrowDownIcon className="w-3 h-3 mr-0.5" />}
-                                            <span>{Math.abs(growth).toFixed(1)}%</span>
+                                        <div className={`mt-0.5 text-xs ${growth >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                            {growth > 0 ? '+' : ''}{growth.toFixed(1)}%
                                         </div>
                                     )}
                                 </td>
