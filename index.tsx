@@ -685,7 +685,7 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         'netIncome': 'Net Income'
     };
 
-    const reportsToShow = reportType === 'annual' ? 5 : 8;
+    const reportsToShow = reportType === 'annual' ? 5 : 6;
     const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, reportsToShow) || [];
   
     return (
