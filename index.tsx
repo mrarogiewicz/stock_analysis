@@ -693,10 +693,7 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         <div className="p-6">
             <div className="flex justify-between items-center mb-5">
                 <h3 className="font-medium text-gray-700">
-                    Income Statement for{' '}
-                    <span style={{ color: '#38B6FF' }} className="font-bold">
-                    {ticker}
-                    </span>
+                    Income Statement
                 </h3>
                 
                 <div className="flex bg-gray-200/80 rounded-lg p-1">

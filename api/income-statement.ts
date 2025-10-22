@@ -8,8 +8,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "Ticker is required and must be a string." });
     }
 
-    // Existing Alpha Vantage logic
-    const apiKey = process.env.ALPHA_KEY || "CEQPZ53439BEL78O";
+    // Use environment variable for the API key
+    const apiKey = process.env.ALPHA_KEY;
+
+    if (!apiKey) {
+        return res.status(500).json({ error: "The 'ALPHA_KEY' environment variable is not set on the server." });
+    }
+
     const alphaVantageUrl = `https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol=${ticker}&apikey=${apiKey}`;
 
     try {
