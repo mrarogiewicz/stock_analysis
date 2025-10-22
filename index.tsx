@@ -234,6 +234,18 @@ const AiIcon = (props) => (
     </svg>
 );
 
+const ArrowUpIcon = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5v-15m0 0l-6.75 6.75M12 4.5l6.75 6.75" />
+    </svg>
+);
+const ArrowDownIcon = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
+    </svg>
+);
+
+
 const Spinner = (props) => (
   <svg
     {...props}
@@ -648,6 +660,17 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     };
 
     const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, 4) || [];
+    
+    const calculateGrowth = (current, previous) => {
+        if (current === 'None' || previous === 'None' || previous == 0) return null;
+        
+        const currentNum = Number(current);
+        const previousNum = Number(previous);
+
+        if (isNaN(currentNum) || isNaN(previousNum)) return null;
+
+        return ((currentNum - previousNum) / Math.abs(previousNum)) * 100;
+    };
   
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
@@ -658,7 +681,10 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
               {ticker}
             </span>
             <span className="block text-xs text-gray-500 mt-1">
-              Currency in {reports[0]?.reportedCurrency || 'USD'}
+              Currency in {reports.length > 0 ? reports[0]?.reportedCurrency : 'USD'}
+            </span>
+             <span className="block text-xs text-gray-500 mt-1 font-normal">
+                With {reportType === 'annual' ? 'Year-over-Year' : 'Quarter-over-Quarter'} Growth
             </span>
           </h3>
           
@@ -703,14 +729,27 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                 <tbody>
                     {Object.entries(metricsToShow).map(([key, displayName]) => (
                     <tr className="bg-white border-b hover:bg-gray-50" key={key}>
-                        <th scope="row" className="px-4 py-2 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10">
+                        <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
                         {displayName}
                         </th>
-                        {reports.map(report => (
-                        <td className="px-4 py-2 text-right" key={`${report.fiscalDateEnding}-${key}`}>
-                            {formatValue(report[key])}
-                        </td>
-                        ))}
+                        {reports.map((report, index) => {
+                            const previousReport = reports[index + 1];
+                            const growth = previousReport ? calculateGrowth(report[key], previousReport[key]) : null;
+
+                            return (
+                                <td className="px-4 py-3 text-right" key={`${report.fiscalDateEnding}-${key}`}>
+                                    <div>{formatValue(report[key])}</div>
+                                    {growth !== null && (
+                                        <div className={`mt-1 flex items-center justify-end text-xs font-semibold ${growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {growth >= 0 ? 
+                                                <ArrowUpIcon className="w-3 h-3 mr-0.5" /> : 
+                                                <ArrowDownIcon className="w-3 h-3 mr-0.5" />}
+                                            <span>{Math.abs(growth).toFixed(1)}%</span>
+                                        </div>
+                                    )}
+                                </td>
+                            );
+                        })}
                     </tr>
                     ))}
                 </tbody>
