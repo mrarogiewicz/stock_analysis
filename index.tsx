@@ -723,34 +723,56 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
           </div>
 
           {reports.length > 0 ? (
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left text-gray-600">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-                    <tr>
-                    <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
-                    {reports.map(report => (
-                        <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
-                        {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : formatQuarter(report.fiscalDateEnding)}
-                        </th>
-                    ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {Object.entries(metricsToShow).map(([key, displayName]) => (
-                    <tr className="bg-white border-b hover:bg-gray-50" key={key}>
-                        <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
-                        {displayName}
-                        </th>
-                        {reports.map((report) => (
-                            <td className="px-4 py-3 text-right align-top" key={`${report.fiscalDateEnding}-${key}`}>
-                                {formatValue(report[key])}
-                            </td>
+            <>
+                {/* Desktop Table View */}
+                <div className="overflow-x-auto hidden md:block">
+                    <table className="w-full text-sm text-left text-gray-600">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                        <tr>
+                        <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
+                        {reports.map(report => (
+                            <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
+                            {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : formatQuarter(report.fiscalDateEnding)}
+                            </th>
                         ))}
-                    </tr>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {Object.entries(metricsToShow).map(([key, displayName]) => (
+                        <tr className="bg-white border-b hover:bg-gray-50" key={key}>
+                            <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
+                            {displayName}
+                            </th>
+                            {reports.map((report) => (
+                                <td className="px-4 py-3 text-right align-top" key={`${report.fiscalDateEnding}-${key}`}>
+                                    {formatValue(report[key])}
+                                </td>
+                            ))}
+                        </tr>
+                        ))}
+                    </tbody>
+                    </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="block md:hidden space-y-4">
+                    {reports.map(report => (
+                        <div key={report.fiscalDateEnding} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                            <h4 className="font-semibold text-base text-gray-800 mb-3 pb-2 border-b border-gray-200">
+                                {reportType === 'annual' ? `Year ${new Date(report.fiscalDateEnding).getFullYear()}` : formatQuarter(report.fiscalDateEnding)}
+                            </h4>
+                            <dl className="space-y-2 text-sm">
+                                {Object.entries(metricsToShow).map(([key, displayName]) => (
+                                    <div key={key} className="flex justify-between items-center">
+                                        <dt className="text-gray-600">{displayName}</dt>
+                                        <dd className="font-medium text-gray-900 text-right">{formatValue(report[key])}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </div>
                     ))}
-                </tbody>
-                </table>
-            </div>
+                </div>
+            </>
           ) : (
             <p className="text-center text-gray-500 mt-4">No {reportType} data available.</p>
           )}
