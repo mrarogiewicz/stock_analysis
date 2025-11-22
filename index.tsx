@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -1204,9 +1205,13 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                     {/* Debug info about available keys */}
                      Debug: Keys present in response: {Object.keys(data).filter(k => data[k] && !data[k].error).join(', ')}
                 </div>
-                 {data._debugUrl && (
-                    <div className="mt-4">
-                         <p className="text-xs text-gray-400">{data._debugUrl}</p>
+                 {data && (
+                    <div className="mt-4 border-t pt-2 text-[10px] text-gray-400 break-all">
+                        <p><strong>Debug URLs (DO NOT SHARE):</strong></p>
+                        <p>Intraday: <a href={data.intraday?._debugUrl} target="_blank" rel="noopener noreferrer">{data.intraday?._debugUrl}</a></p>
+                        <p>Daily: <a href={data.daily?._debugUrl} target="_blank" rel="noopener noreferrer">{data.daily?._debugUrl}</a></p>
+                        <p>Weekly: <a href={data.weekly?._debugUrl} target="_blank" rel="noopener noreferrer">{data.weekly?._debugUrl}</a></p>
+                        <p>Monthly: <a href={data.monthly?._debugUrl} target="_blank" rel="noopener noreferrer">{data.monthly?._debugUrl}</a></p>
                     </div>
                 )}
             </div>
@@ -1296,9 +1301,13 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                 ))}
             </div>
             
-             {data._debugUrl && (
-                <div className="mt-4 border-t pt-2">
-                    <p className="text-[10px] text-gray-400 text-center">{data._debugUrl}</p>
+             {data && (
+                <div className="mt-4 border-t pt-2 text-[10px] text-gray-400 break-all">
+                    <p><strong>Debug URLs (DO NOT SHARE):</strong></p>
+                    <p>Intraday: <a href={data.intraday?._debugUrl} target="_blank" rel="noopener noreferrer">{data.intraday?._debugUrl}</a></p>
+                    <p>Daily: <a href={data.daily?._debugUrl} target="_blank" rel="noopener noreferrer">{data.daily?._debugUrl}</a></p>
+                    <p>Weekly: <a href={data.weekly?._debugUrl} target="_blank" rel="noopener noreferrer">{data.weekly?._debugUrl}</a></p>
+                    <p>Monthly: <a href={data.monthly?._debugUrl} target="_blank" rel="noopener noreferrer">{data.monthly?._debugUrl}</a></p>
                 </div>
             )}
         </div>

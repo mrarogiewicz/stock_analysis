@@ -5,9 +5,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Helper function to fetch a specific URL with key rotation
 async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
     let lastData = null;
+    let lastUrl = "";
 
     for (const apiKey of keys) {
         const url = `${baseUrl}&apikey=${apiKey}`;
+        lastUrl = url;
 
         try {
             const response = await fetch(url);
@@ -33,13 +35,12 @@ async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
 
             // Check for specific error messages
             if (data["Error Message"]) {
-                // We treat this as a failure for this specific key/request
                 console.error(`API Error with key ending ...${apiKey?.slice(-4)}: ${data["Error Message"]}`);
-                return { error: data["Error Message"] };
+                return { error: data["Error Message"], _debugUrl: url };
             }
 
-            // Success
-            return data;
+            // Success - inject the URL used
+            return { ...data, _debugUrl: url };
 
         } catch (error) {
             console.error(`Error with key ending ...${apiKey?.slice(-4)}:`, error);
@@ -50,10 +51,10 @@ async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
     // Exhausted all keys
     if (lastData && (lastData["Note"] || lastData["Information"])) {
         const msg = lastData["Note"] || lastData["Information"];
-        return { error: "API rate limit exceeded on all keys.", details: msg };
+        return { error: "API rate limit exceeded on all keys.", details: msg, _debugUrl: lastUrl };
     }
 
-    return { error: "Failed to fetch data after trying all available API keys." };
+    return { error: "Failed to fetch data after trying all available API keys.", _debugUrl: lastUrl };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
