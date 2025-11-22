@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -1087,6 +1088,26 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     );
 };
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white/95 border border-gray-200 shadow-lg p-3 rounded text-xs">
+        <p className="font-bold text-gray-700 mb-1">{label}</p>
+        {payload.map((entry, index) => (
+            <p key={index} style={{ color: entry.color }}>
+                {entry.name}: {
+                    entry.name === 'Volume' 
+                    ? (entry.value / 1000000).toFixed(2) + 'M' 
+                    : '$' + Number(entry.value).toFixed(2)
+                }
+            </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) => {
     const [parsingError, setParsingError] = useState(null);
 
@@ -1141,11 +1162,10 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
 
         return Object.keys(timeSeries).map(date => ({
             date,
-            timestamp: new Date(date).getTime(),
             price: parseFloat(timeSeries[date]['4. close']),
             volume: parseInt(timeSeries[date]['5. volume']),
             type
-        })).sort((a, b) => a.timestamp - b.timestamp);
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [data, range]);
 
     // Filter data based on range
@@ -1176,7 +1196,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         // Filter by date
         // Convert to timestamp for accurate comparison
         const startTime = startDate.getTime();
-        return chartData.filter(item => item.timestamp >= startTime);
+        return chartData.filter(item => new Date(item.date).getTime() >= startTime);
     }, [chartData, range]);
 
     const dateRangeText = useMemo(() => {
@@ -1192,35 +1212,6 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
 
         return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}`;
     }, [filteredData, range]);
-    
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            const date = new Date(label);
-            let labelStr = '';
-            if (range === '1D' || range === '1W') {
-                labelStr = date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            } else {
-                labelStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' } as Intl.DateTimeFormatOptions);
-            }
-
-            return (
-            <div className="bg-white/95 border border-gray-200 shadow-lg p-3 rounded text-xs">
-                <p className="font-bold text-gray-700 mb-1">{labelStr}</p>
-                {payload.map((entry, index) => (
-                    <p key={index} style={{ color: entry.color }}>
-                        {entry.name}: {
-                            entry.name === 'Volume' 
-                            ? (entry.value / 1000000).toFixed(2) + 'M' 
-                            : '$' + Number(entry.value).toFixed(2)
-                        }
-                    </p>
-                ))}
-            </div>
-            );
-        }
-        return null;
-    };
-
 
     if (!data) return null;
 
@@ -1261,12 +1252,10 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                             <XAxis 
-                                dataKey="timestamp" 
-                                type="number"
-                                domain={['dataMin', 'dataMax']}
+                                dataKey="date" 
                                 tick={{fontSize: 10, fill: '#6b7280'}} 
-                                tickFormatter={(val) => {
-                                    const date = new Date(val);
+                                tickFormatter={(str) => {
+                                    const date = new Date(str);
                                     // If 1D (Intraday), show time
                                     if (range === '1D') {
                                          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
