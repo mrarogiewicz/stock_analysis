@@ -1230,6 +1230,22 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
 
         return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}`;
     }, [filteredData, range]);
+    
+    const priceChangeInfo = useMemo(() => {
+        if (!filteredData || filteredData.length === 0) return null;
+        const first = filteredData[0];
+        const last = filteredData[filteredData.length - 1];
+        
+        const change = last.price - first.price;
+        const percent = (change / first.price) * 100;
+        
+        return {
+            change,
+            percent,
+            isPositive: change >= 0
+        };
+    }, [filteredData]);
+
 
     if (!data) return null;
 
@@ -1256,10 +1272,15 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
 
     return (
         <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-start mb-4">
                  <div>
                     <h3 className="text-lg font-bold text-gray-800">Price & Volume - {ticker}</h3>
                     <p className="text-xs text-gray-500 mt-1">{dateRangeText}</p>
+                    {priceChangeInfo && (
+                        <div className={`text-sm font-semibold mt-1 ${priceChangeInfo.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                            {priceChangeInfo.isPositive ? '+' : ''}{priceChangeInfo.change.toFixed(2)} ({priceChangeInfo.isPositive ? '+' : ''}{priceChangeInfo.percent.toFixed(2)}%)
+                        </div>
+                    )}
                  </div>
                  {isFetching && <Spinner className="w-5 h-5 text-[#38B6FF]" />}
             </div>
@@ -1303,7 +1324,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                                 orientation="left" 
                                 width={0}
                                 tick={false}
-                                domain={[0, 'dataMax * 8']} // Make volume bars significantly shorter
+                                domain={[0, 'dataMax * 16']} // Make volume bars shorter
                             />
                             <YAxis 
                                 yAxisId="right" 
