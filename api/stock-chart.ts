@@ -27,11 +27,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const data = await alphaVantageResponse.json();
 
         // Alpha Vantage returns an error message or note in the JSON payload for invalid requests/limits.
+        // We will include the debugUrl even in error cases if possible, but usually we return early.
+        // For this specific debugging request, let's try to pass the data through even if it looks suspicious, 
+        // or attach the URL to the error response if possible, but standard JSON response is safer.
+        
         if (data["Error Message"] || data["Note"]) {
-             return res.status(400).json({ error: data["Error Message"] || data["Note"] || 'Invalid request to Alpha Vantage API.' });
+             // Include URL in error for debugging if needed, but sticking to existing pattern mostly.
+             return res.status(400).json({ 
+                 error: data["Error Message"] || data["Note"] || 'Invalid request to Alpha Vantage API.',
+                 debugUrl: alphaVantageUrl 
+             });
         }
 
-        return res.status(200).json(data);
+        // Return data with the debug URL injected
+        return res.status(200).json({ ...data, debugUrl: alphaVantageUrl });
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unknown server error occurred.";

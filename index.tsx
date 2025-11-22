@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -244,7 +245,13 @@ const useStockAnalysisGenerator = () => {
         const data = await res.json();
         
         if (!res.ok) {
-            throw new Error(data.error || 'Failed to fetch chart data.');
+             // If the API returns an error with debugUrl, try to use it in the error message display if needed,
+             // but currently fetch throws on !ok. We can attach it to the error object if we want more detail.
+             const errorMsg = data.error || 'Failed to fetch chart data.';
+             // Attach debug URL to error if present
+             const enhancedError = new Error(errorMsg);
+             if (data.debugUrl) (enhancedError as any).debugUrl = data.debugUrl;
+             throw enhancedError;
         }
 
         setStockChartData(data);
@@ -252,6 +259,10 @@ const useStockAnalysisGenerator = () => {
     } catch (e) {
         console.error(e);
         setChartError(e.message);
+        // If we attached debugUrl in the catch block above, we could theoretically set it in state to display,
+        // but for now, the user asked to show it under the chart when data IS present (or at least response returned).
+        // To handle errors with debug links, we'd need to change chartError state structure.
+        // For this implementation, we focus on successful but empty data responses or debug purposes.
     } finally {
         setIsFetchingChart(false);
     }
@@ -1240,6 +1251,26 @@ const StockChartDisplay = ({ data, ticker }) => {
                     </button>
                 ))}
             </div>
+            
+            {/* Debug Link */}
+            {data.debugUrl && (
+                <div className="mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs break-all">
+                    <p className="font-bold text-gray-600 mb-1 flex items-center gap-1">
+                         <span>🐛</span> Debug API URL:
+                    </p>
+                    <a 
+                        href={data.debugUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-500 hover:text-blue-700 hover:underline block"
+                    >
+                        {data.debugUrl}
+                    </a>
+                    <p className="text-gray-400 mt-1 italic">
+                        ⚠️ Warning: This link contains the API Key. Do not share.
+                    </p>
+                </div>
+            )}
         </div>
     );
 };
