@@ -233,21 +233,25 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker, addToResultOrder]);
 
-  const fetchStockChart = useCallback(async (range = '3M') => {
+  const fetchStockChart = useCallback(async () => {
     if (!generatedForTicker) return;
 
-    // If we are just switching range and chart is already displayed, we still fetch new data
-    // because we switch endpoints (Daily vs Weekly vs Monthly)
     addToResultOrder('chart');
+    
+    // If we already have data, don't fetch again.
+    // But we need to ensure we are fetching for the *current* ticker.
+    // We will just fetch every time "Chart" is clicked if we assume the user wants fresh data,
+    // or we could check if stockChartData exists.
+    // Given the key rotation requirement, fetching fresh on click is safer than aggressive caching if ticker changes.
+    // Let's fetch fresh.
+    
     setIsFetchingChart(true);
     setChartError(null);
-    setChartRange(range);
-    // Don't clear data immediately to prevent UI flicker if possible, 
-    // but since schemas change (Intraday vs Daily), safer to clear or handle in UI
-    // setStockChartData(null); 
+    setStockChartData(null); 
 
     try {
-        const res = await fetch(`/api/stock-chart?ticker=${generatedForTicker}&range=${range}`);
+        // Fetch all data at once
+        const res = await fetch(`/api/stock-chart?ticker=${generatedForTicker}`);
         const data = await res.json();
         
         if (!res.ok) {
@@ -259,11 +263,15 @@ const useStockAnalysisGenerator = () => {
     } catch (e) {
         console.error(e);
         setChartError(e.message);
-        setStockChartData(null); // Clear on error
     } finally {
         setIsFetchingChart(false);
     }
   }, [generatedForTicker, addToResultOrder]);
+  
+  // Helper to just switch range in UI without fetching
+  const setRange = (range) => {
+      setChartRange(range);
+  };
 
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
@@ -302,6 +310,7 @@ const useStockAnalysisGenerator = () => {
     chartError,
     fetchStockChart,
     chartRange,
+    setRange,
     resultOrder,
   };
 };
@@ -608,7 +617,7 @@ const SuccessDisplay = ({
                 </button>
 
                 <button
-                    onClick={() => onFetchStockChart('3M')}
+                    onClick={() => onFetchStockChart()}
                     disabled={isFetchingChart}
                     className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
                 >
@@ -1107,28 +1116,29 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) => {
     
-    // Transform data
+    // Transform data based on range and available datasets
     const chartData = useMemo(() => {
         if (!data) return [];
         
         let timeSeries = null;
         let type = '';
 
-        // Detect data type based on keys present
-        if (data['Time Series (15min)']) {
-             timeSeries = data['Time Series (15min)'];
+        // Pick the correct dataset from the composite object based on the current range
+        if (range === '1D') {
+             timeSeries = data.intraday ? data.intraday['Time Series (15min)'] : null;
              type = '15min';
-        } else if (data['Time Series (Daily)']) {
-             timeSeries = data['Time Series (Daily)'];
+        } else if (range === '1M' || range === '3M') {
+             timeSeries = data.daily ? data.daily['Time Series (Daily)'] : null;
              type = 'Daily';
-        } else if (data['Weekly Time Series']) {
-             timeSeries = data['Weekly Time Series'];
+        } else if (range === '1Y' || range === 'YTD') {
+             timeSeries = data.weekly ? data.weekly['Weekly Time Series'] : null;
              type = 'Weekly';
-        } else if (data['Monthly Time Series']) {
-             timeSeries = data['Monthly Time Series'];
+        } else if (range === '5Y' || range === 'All') {
+             timeSeries = data.monthly ? data.monthly['Monthly Time Series'] : null;
              type = 'Monthly';
         }
 
+        // If the specific dataset is missing or has error, return empty
         if (!timeSeries) return [];
 
         return Object.keys(timeSeries).map(date => ({
@@ -1137,7 +1147,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
             volume: parseInt(timeSeries[date]['5. volume']),
             type
         })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [data]);
+    }, [data, range]);
 
     // Filter data based on range
     const filteredData = useMemo(() => {
@@ -1145,41 +1155,42 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
 
         // For 'All', return everything
         if (range === 'All') return chartData;
-
-        // For 1M and 3M (Daily data), we might need to slice if API returns more than needed
-        // but mostly the API 'Daily' endpoint returns ~90 days compact, which is what we want for 3M.
-        // For 1M, we can slice the last ~20-22 trading days or just last 30 calendar days.
         
         const lastDate = new Date(chartData[chartData.length - 1].date);
         let startDate = new Date(lastDate);
 
         if (range === '1M') {
             startDate.setMonth(lastDate.getMonth() - 1);
+        } else if (range === '3M') {
+             startDate.setMonth(lastDate.getMonth() - 3);
         } else if (range === '1Y') {
             startDate.setFullYear(lastDate.getFullYear() - 1);
+        } else if (range === 'YTD') {
+            startDate = new Date(lastDate.getFullYear(), 0, 1);
         } else if (range === '5Y') {
             startDate.setFullYear(lastDate.getFullYear() - 5);
         } else {
-            // For 1D, 3M, All, we generally trust the API response or show all available from that endpoint
+            // For 1D (Intraday), we usually just show what's returned (which is usually 1 day or recent days)
             return chartData;
         }
 
-        // Simple filtering
-        return chartData.filter(item => new Date(item.date) >= startDate);
+        // Filter by date
+        // Convert to timestamp for accurate comparison
+        const startTime = startDate.getTime();
+        return chartData.filter(item => new Date(item.date).getTime() >= startTime);
     }, [chartData, range]);
 
     if (!data) return null;
 
-    // Debug info for missing data
-    if (chartData.length === 0 && !isFetching) {
+    // Check for missing data
+    // If filteredData is empty but we have the raw data object, it implies data is missing for that range or filter removed everything
+    if (filteredData.length === 0 && !isFetching) {
          return (
             <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg p-6 text-center">
-                <p className="text-gray-600">No data available for this time range.</p>
-                {data['Information'] && <p className="text-xs text-gray-400 mt-2">{data['Information']}</p>}
+                <p className="text-gray-600">No data available for range {range}.</p>
                  {data._debugUrl && (
                     <div className="mt-4">
-                        <p className="text-xs text-red-400">Debug URL:</p>
-                        <a href={data._debugUrl} target="_blank" className="text-xs text-blue-500 underline break-all">{data._debugUrl}</a>
+                         <p className="text-xs text-gray-400">Data loaded via pooled request.</p>
                     </div>
                 )}
             </div>
@@ -1254,15 +1265,14 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
             </div>
 
             <div className="flex justify-center gap-2 mt-4 flex-wrap">
-                {['1D', '1M', '3M', '1Y', '5Y', 'All'].map((r) => (
+                {['1D', '1M', '3M', 'YTD', '1Y', '5Y', 'All'].map((r) => (
                     <button
                         key={r}
                         onClick={() => onRangeChange(r)}
-                        disabled={isFetching}
                         className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
                             range === r 
                             ? 'bg-[#38B6FF] text-white shadow-sm' 
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                     >
                         {r}
@@ -1272,8 +1282,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
             
              {data._debugUrl && (
                 <div className="mt-4 border-t pt-2">
-                    <p className="text-[10px] text-gray-400">Debug: {data._requestedRange}</p>
-                    <a href={data._debugUrl} target="_blank" className="text-[10px] text-blue-400 underline break-all">{data._debugUrl}</a>
+                    <p className="text-[10px] text-gray-400 text-center">{data._debugUrl}</p>
                 </div>
             )}
         </div>
@@ -1314,6 +1323,7 @@ const App = () => {
     chartError,
     fetchStockChart,
     chartRange,
+    setRange,
     resultOrder,
   } = useStockAnalysisGenerator();
 
@@ -1341,20 +1351,18 @@ const App = () => {
         );
       case 'chart':
         if (!stockChartData && !chartError && !isFetchingChart) return null;
-        // Keep showing old data while fetching new range, or show loading state inside component
-        // But if we have error and no data, show error.
+        
         if (chartError && !stockChartData) return <div key="chart"><ErrorMessage message={chartError} /></div>;
         
         return (
           <div key="chart">
              {chartError && <ErrorMessage message={chartError} />}
-             {/* Render component even if fetching to show old data with spinner, or just spinner if no data */}
              {(stockChartData || isFetchingChart) && (
                  <StockChartDisplay 
                     data={stockChartData} 
                     ticker={generatedForTicker} 
                     range={chartRange}
-                    onRangeChange={fetchStockChart}
+                    onRangeChange={setRange}
                     isFetching={isFetchingChart}
                  />
              )}
