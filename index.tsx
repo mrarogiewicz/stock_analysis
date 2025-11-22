@@ -288,80 +288,7 @@ const Header = ({ isTickerPresent }) => {
   );
 };
 
-const InputForm = ({ ticker, setTicker, isLoading, onSubmit }) => {
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit();
-  };
-  const isDisabledAndNotLoading = !isLoading && !ticker.trim();
-    
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="tickerInput" className="block text-gray-700 font-medium mb-2 text-center">
-          Enter stock ticker
-        </label>
-        <input
-          id="tickerInput"
-          type="text"
-          value={ticker}
-          onChange={(e) => setTicker(e.target.value)}
-          placeholder="e.g., AAPL"
-          maxLength={10}
-          autoFocus
-          className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200 text-center"
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={isLoading || !ticker.trim()}
-        className="relative overflow-hidden w-full flex items-center justify-center px-4 py-3 bg-[#38B6FF] text-white font-bold rounded-2xl hover:bg-[#32a3e6] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38B6FF] transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed"
-      >
-        {isLoading ? (
-          <>
-            <Spinner className="w-5 h-5 mr-2" />
-            <span>Processing...</span>
-          </>
-        ) : (
-          <span className={isDisabledAndNotLoading ? 'text-transparent' : ''}>Generate</span>
-        )}
-        {isDisabledAndNotLoading && (
-            <div aria-hidden="true" className="bubbles absolute inset-0 pointer-events-none">
-                {[...Array(10)].map((_, i) => (
-                    <div key={i} className="bubble"></div>
-                ))}
-            </div>
-        )}
-      </button>
-    </form>
-  );
-};
-
-const ErrorMessage = ({ message }) => {
-  if (!message) return null;
-  return (
-    <div className="mt-4 bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-      {message}
-    </div>
-  );
-};
-
-const SuccessDisplay = ({ 
-    ticker, 
-    content, 
-    isSaving, 
-    saveSuccess, 
-    onSaveAnalysis, 
-    displayType, 
-    onDisplayTypeChange, 
-    onGenerateWithGemini, 
-    isGeneratingWithGemini, 
-    onFetchIncomeStatement, 
-    isFetchingIncomeStatement,
-    onFetchOverview,
-    isFetchingOverview
-}) => {
+const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content }) => {
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
   const [isChatGptBusy, setIsChatGptBusy] = useState(false);
@@ -415,6 +342,141 @@ const SuccessDisplay = ({
       setTimeout(() => setIsChatGptBusy(false), 2500);
   }, [content]);
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit();
+  };
+  const isDisabledAndNotLoading = !isLoading && !ticker.trim();
+    
+  return (
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="tickerInput" className="block text-gray-700 font-medium mb-2 text-center">
+            Enter stock ticker
+          </label>
+          <input
+            id="tickerInput"
+            type="text"
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value)}
+            placeholder="e.g., AAPL"
+            maxLength={10}
+            autoFocus
+            className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200 text-center"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading || !ticker.trim()}
+          className="relative overflow-hidden w-full flex items-center justify-center px-4 py-3 bg-[#38B6FF] text-white font-bold rounded-2xl hover:bg-[#32a3e6] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#38B6FF] transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed"
+        >
+          {isLoading ? (
+            <>
+              <Spinner className="w-5 h-5 mr-2" />
+              <span>Processing...</span>
+            </>
+          ) : (
+            <span className={isDisabledAndNotLoading ? 'text-transparent' : ''}>Generate</span>
+          )}
+          {isDisabledAndNotLoading && (
+              <div aria-hidden="true" className="bubbles absolute inset-0 pointer-events-none">
+                  {[...Array(10)].map((_, i) => (
+                      <div key={i} className="bubble"></div>
+                  ))}
+              </div>
+          )}
+        </button>
+      </form>
+      
+      {hasContent && (
+         <div className="space-y-4 pt-2 border-t border-gray-100 animate-[fadeIn_0.5s_ease-in-out]">
+            <div className="flex items-center justify-center gap-4">
+                <a
+                href={perplexityUrl}
+                onClick={handlePerplexityClick}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Copy & Open in Perplexity"
+                className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+                >
+                {isPerplexityBusy ? (
+                    <CheckIcon className="w-full h-full text-green-500" />
+                ) : (
+                    <img
+                    src="https://images.seeklogo.com/logo-png/61/1/perplexity-ai-icon-black-logo-png_seeklogo-611679.png"
+                    alt="Perplexity Logo"
+                    className="w-full h-full object-contain"
+                    />
+                )}
+                </a>
+                <a
+                href={geminiUrl}
+                onClick={handleGeminiClick}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Copy & Open in Gemini"
+                className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+                >
+                {isGeminiBusy ? (
+                    <CheckIcon className="w-full h-full text-green-500" />
+                ) : (
+                    <img
+                    src="https://img.icons8.com/ios_filled/512/gemini-ai.png"
+                    alt="Gemini Logo"
+                    className="w-full h-full object-contain"
+                    />
+                )}
+                </a>
+                <a
+                href={chatGptUrl}
+                onClick={handleChatGptClick}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Copy & Open in ChatGPT"
+                className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+                >
+                {isChatGptBusy ? (
+                    <CheckIcon className="w-full h-full text-green-500" />
+                ) : (
+                    <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/1024px-ChatGPT-Logo.svg.png"
+                    alt="ChatGPT Logo"
+                    className="w-full h-full object-contain"
+                    />
+                )}
+                </a>
+            </div>
+         </div>
+      )}
+    </div>
+  );
+};
+
+const ErrorMessage = ({ message }) => {
+  if (!message) return null;
+  return (
+    <div className="mt-4 bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+      {message}
+    </div>
+  );
+};
+
+const SuccessDisplay = ({ 
+    ticker, 
+    isSaving, 
+    saveSuccess, 
+    onSaveAnalysis, 
+    displayType, 
+    onDisplayTypeChange, 
+    onFetchIncomeStatement, 
+    isFetchingIncomeStatement,
+    onFetchOverview,
+    isFetchingOverview,
+    onGenerateWithGemini,
+    isGeneratingWithGemini
+}) => {
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
       <div className="text-center mb-4">
@@ -488,7 +550,9 @@ const SuccessDisplay = ({
                         </>
                     )}
                 </button>
+
                 <button
+                    type="button"
                     onClick={onGenerateWithGemini}
                     disabled={isGeneratingWithGemini}
                     className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
@@ -506,7 +570,7 @@ const SuccessDisplay = ({
                         </>
                     )}
                 </button>
-
+               
                 {displayType === 'detail' && (
                     <button
                         onClick={onSaveAnalysis}
@@ -530,65 +594,6 @@ const SuccessDisplay = ({
                     </button>
                 )}
              </div>
-        </div>
-        
-        <div className="w-full h-px bg-gray-200 my-2"></div>
-
-        <div className="flex items-center justify-center gap-4 flex-wrap md:flex-nowrap">
-            <a
-            href={perplexityUrl}
-            onClick={handlePerplexityClick}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Copy & Open in Perplexity"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-            >
-            {isPerplexityBusy ? (
-                <CheckIcon className="w-full h-full text-green-500" />
-            ) : (
-                <img
-                src="https://images.seeklogo.com/logo-png/61/1/perplexity-ai-icon-black-logo-png_seeklogo-611679.png"
-                alt="Perplexity Logo"
-                className="w-full h-full object-contain"
-                />
-            )}
-            </a>
-            <a
-            href={geminiUrl}
-            onClick={handleGeminiClick}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Copy & Open in Gemini"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-            >
-            {isGeminiBusy ? (
-                <CheckIcon className="w-full h-full text-green-500" />
-            ) : (
-                <img
-                src="https://img.icons8.com/ios_filled/512/gemini-ai.png"
-                alt="Gemini Logo"
-                className="w-full h-full object-contain"
-                />
-            )}
-            </a>
-            <a
-            href={chatGptUrl}
-            onClick={handleChatGptClick}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Copy & Open in ChatGPT"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-            >
-            {isChatGptBusy ? (
-                <CheckIcon className="w-full h-full text-green-500" />
-            ) : (
-                <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/ChatGPT-Logo.svg/1024px-ChatGPT-Logo.svg.png"
-                alt="ChatGPT Logo"
-                className="w-full h-full object-contain"
-                />
-            )}
-            </a>
         </div>
       </div>
     </div>
@@ -1032,6 +1037,8 @@ const App = () => {
                         setTicker={setTicker}
                         isLoading={isLoading}
                         onSubmit={generateAnalysis}
+                        hasContent={hasContent}
+                        content={contentToDisplay}
                     />
                     <ErrorMessage message={error} />
                 </div>
@@ -1041,18 +1048,17 @@ const App = () => {
               <div className="mb-8 md:mb-0">
                 <SuccessDisplay 
                   ticker={generatedForTicker} 
-                  content={contentToDisplay}
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}
                   onSaveAnalysis={saveAnalysis}
                   displayType={displayType}
                   onDisplayTypeChange={setDisplayType}
-                  onGenerateWithGemini={generateWithGemini}
-                  isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchIncomeStatement={fetchIncomeStatement}
                   isFetchingIncomeStatement={isFetchingIncomeStatement}
                   onFetchOverview={fetchCompanyOverview}
                   isFetchingOverview={isFetchingOverview}
+                  onGenerateWithGemini={generateWithGemini}
+                  isGeneratingWithGemini={isGeneratingWithGemini}
                 />
                 <ErrorMessage message={saveError} />
               </div>
