@@ -976,13 +976,13 @@ const StockChartDisplay = ({ data, ticker }) => {
                            orientation="right" 
                            tick={false} 
                            axisLine={false}
-                           domain={[0, (dataMax) => dataMax * 5]} // Scale volume down visually
+                           domain={[0, (dataMax: number) => dataMax * 5]} // Scale volume down visually
                         />
                         <Tooltip 
                             contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px', border: '1px solid #ddd', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                             labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                             formatter={(value, name) => [
-                                name === 'price' ? `$${parseFloat(value).toFixed(2)}` : parseInt(value).toLocaleString(),
+                                name === 'price' ? `$${Number(value).toFixed(2)}` : Number(value).toLocaleString(),
                                 name === 'price' ? 'Price' : 'Volume'
                             ]}
                         />
