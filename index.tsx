@@ -548,7 +548,7 @@ const SuccessDisplay = ({
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
       <div className="text-center mb-4">
-        <p className="text-xl font-bold text-gray-800">
+        <p className="text-xl font-bold text-gray-800 min-h-[1.75rem]">
           {companyOverview?.Name}
         </p>
       </div>
@@ -1079,9 +1079,9 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white/95 border border-gray-200 shadow-lg p-3 rounded text-xs">
+      <div className="bg-white/95 border border-gray-200 shadow-lg p-3 rounded text-xs z-50">
         <p className="font-bold text-gray-700 mb-1">{label}</p>
-        {payload.map((entry, index) => (
+        {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }}>
                 {entry.name}: {
                     entry.name === 'Volume' 
@@ -1097,13 +1097,22 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const StockChartDisplay = ({ data, ticker }) => {
-    const [range, setRange] = useState('1Y');
+    const [range, setRange] = useState('3M');
 
     // Transform data
     const chartData = useMemo(() => {
-        if (!data || !data['Time Series (Daily)']) return [];
+        if (!data) return [];
+        // console.log("Raw Chart Data:", data); // DEBUG
         
-        const timeSeries = data['Time Series (Daily)'];
+        // Robust check for Time Series key
+        const timeSeriesKey = Object.keys(data).find(k => k.includes("Time Series") || k.includes("Daily"));
+        const timeSeries = timeSeriesKey ? data[timeSeriesKey] : null;
+        
+        if (!timeSeries) {
+            console.warn('Time Series key not found in data object');
+            return [];
+        }
+        
         return Object.keys(timeSeries).map(date => ({
             date,
             price: parseFloat(timeSeries[date]['4. close']),
@@ -1114,21 +1123,27 @@ const StockChartDisplay = ({ data, ticker }) => {
     // Filter data based on range
     const filteredData = useMemo(() => {
         if (range === 'All') return chartData;
+        if (!chartData.length) return [];
 
         const now = new Date();
-        let startDate = new Date();
+        const startDate = new Date();
 
         switch (range) {
             case '1W': startDate.setDate(now.getDate() - 7); break;
             case '1M': startDate.setMonth(now.getMonth() - 1); break;
             case '3M': startDate.setMonth(now.getMonth() - 3); break;
-            case 'YTD': startDate = new Date(now.getFullYear(), 0, 1); break;
+            case 'YTD': startDate.setMonth(0, 1); break; // Jan 1st of current year
             case '1Y': startDate.setFullYear(now.getFullYear() - 1); break;
             case '5Y': startDate.setFullYear(now.getFullYear() - 5); break;
             default: return chartData;
         }
 
-        return chartData.filter(item => new Date(item.date) >= startDate);
+        // Convert to timestamps for consistent comparison
+        const startTime = startDate.getTime();
+        return chartData.filter(item => {
+            const itemTime = new Date(item.date).getTime();
+            return itemTime >= startTime;
+        });
     }, [chartData, range]);
 
     if (!data) return null;
@@ -1152,8 +1167,9 @@ const StockChartDisplay = ({ data, ticker }) => {
                                 dataKey="date" 
                                 tick={{fontSize: 10, fill: '#6b7280'}} 
                                 tickFormatter={(str) => {
+                                    if (!str) return '';
                                     const date = new Date(str);
-                                    return date.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+                                    return isNaN(date.getTime()) ? str : date.toLocaleDateString(undefined, {month:'short', day:'numeric'});
                                 }}
                                 minTickGap={30}
                             />
@@ -1193,8 +1209,18 @@ const StockChartDisplay = ({ data, ticker }) => {
                         </ComposedChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                        No data available for this time range.
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm">
+                        <p>No data available for this time range.</p>
+                        {chartData.length > 0 && (
+                             <p className="text-xs mt-1 text-gray-400">
+                                (Filtered 0 of {chartData.length} total points)
+                             </p>
+                        )}
+                        {chartData.length === 0 && (
+                            <p className="text-xs mt-1 text-gray-400">
+                                (No daily data found in API response)
+                            </p>
+                        )}
                     </div>
                 )}
             </div>
