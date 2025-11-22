@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -11,7 +10,7 @@ const useStockAnalysisGenerator = () => {
   
   const [generatedSimpleContent, setGeneratedSimpleContent] = useState('');
   const [generatedDetailContent, setGeneratedDetailContent] = useState('');
-  const [displayType, setDisplayType] = useState('detail');
+  const [displayType, setDisplayType] = useState('simple');
 
   const [generatedForTicker, setGeneratedForTicker] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -74,7 +73,7 @@ const useStockAnalysisGenerator = () => {
       
       setGeneratedSimpleContent(finalSimplePrompt);
       setGeneratedDetailContent(finalDetailPrompt);
-      setDisplayType('detail'); // Default to showing detail view
+      setDisplayType('simple'); // Default to showing simple view
       setGeneratedForTicker(ticker.toUpperCase());
       setTicker(''); // Clear the input field
 
@@ -125,7 +124,8 @@ const useStockAnalysisGenerator = () => {
   }, [generatedSimpleContent, generatedDetailContent, generatedForTicker, displayType]);
 
   const generateWithGemini = useCallback(async () => {
-    if (displayType !== 'simple' || !generatedSimpleContent) return;
+    const content = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
+    if (!content) return;
 
     setIsGeneratingWithGemini(true);
     setGeminiError(null);
@@ -135,7 +135,7 @@ const useStockAnalysisGenerator = () => {
       const res = await fetch('/api/generate-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: generatedSimpleContent }),
+        body: JSON.stringify({ prompt: content }),
       });
 
       if (!res.ok) {
@@ -152,7 +152,7 @@ const useStockAnalysisGenerator = () => {
     } finally {
       setIsGeneratingWithGemini(false);
     }
-  }, [generatedSimpleContent, displayType]);
+  }, [generatedSimpleContent, generatedDetailContent, displayType]);
 
   const fetchIncomeStatement = useCallback(async () => {
     if (!generatedForTicker) return;
@@ -251,36 +251,6 @@ const CheckIcon = (props) => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
   </svg>
 );
-
-const CopyIcon = (props) => (
-  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-  </svg>
-);
-
-const CloudUploadIcon = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-  </svg>
-);
-
-const AiIcon = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.502L16.5 21.75l-.398-1.248a3.375 3.375 0 00-2.455-2.456L12.75 18l1.248-.398a3.375 3.375 0 002.455-2.456L16.5 14.25l.398 1.248a3.375 3.375 0 002.456 2.456l1.248.398-1.248.398a3.375 3.375 0 00-2.456 2.456z" />
-    </svg>
-);
-
-const ArrowUpIcon = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5v-15m0 0l-6.75 6.75M12 4.5l6.75 6.75" />
-    </svg>
-);
-const ArrowDownIcon = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
-    </svg>
-);
-
 
 const Spinner = (props) => (
   <svg
@@ -392,21 +362,9 @@ const SuccessDisplay = ({
     onFetchOverview,
     isFetchingOverview
 }) => {
-  const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
   const [isChatGptBusy, setIsChatGptBusy] = useState(false);
-
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(content);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy text: ', err);
-      alert('Failed to copy to clipboard.');
-    }
-  }, [content]);
 
   const perplexityUrl = 'https://perplexity.ai/search';
   const geminiUrl = 'https://gemini.google.com/app';
@@ -471,16 +429,6 @@ const SuccessDisplay = ({
       <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-lg p-1 mb-5">
           <button
               type="button"
-              onClick={() => onDisplayTypeChange('detail')}
-              aria-pressed={displayType === 'detail'}
-              className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
-              displayType === 'detail' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-              }`}
-          >
-              Detail
-          </button>
-          <button
-              type="button"
               onClick={() => onDisplayTypeChange('simple')}
               aria-pressed={displayType === 'simple'}
               className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
@@ -489,9 +437,103 @@ const SuccessDisplay = ({
           >
               Simple
           </button>
+          <button
+              type="button"
+              onClick={() => onDisplayTypeChange('detail')}
+              aria-pressed={displayType === 'detail'}
+              className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+              displayType === 'detail' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+              }`}
+          >
+              Detail
+          </button>
       </div>
 
       <div className="space-y-4">
+        <div className="space-y-2">
+             <div className="flex flex-col gap-2">
+                <button
+                    onClick={onFetchOverview}
+                    disabled={isFetchingOverview}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                >
+                    {isFetchingOverview ? (
+                        <Spinner className="w-4 h-4 text-gray-600" />
+                    ) : (
+                        <>
+                            <img 
+                                src="https://icon-library.com/images/overview-icon/overview-icon-7.jpg" 
+                                alt="" 
+                                className="w-4 h-4 object-contain" 
+                            />
+                            <span>Overview</span>
+                        </>
+                    )}
+                </button>
+                <button
+                    onClick={onFetchIncomeStatement}
+                    disabled={isFetchingIncomeStatement}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                >
+                    {isFetchingIncomeStatement ? (
+                        <Spinner className="w-4 h-4 text-gray-600" />
+                    ) : (
+                        <>
+                            <img 
+                                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8LzpNbop14ZIV69sK22MLFRAqkzB0L_bG-g&s" 
+                                alt="" 
+                                className="w-4 h-4 object-contain" 
+                            />
+                            <span>Income Statement</span>
+                        </>
+                    )}
+                </button>
+                <button
+                    onClick={onGenerateWithGemini}
+                    disabled={isGeneratingWithGemini}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                >
+                    {isGeneratingWithGemini ? (
+                        <Spinner className="w-4 h-4 text-gray-600" />
+                    ) : (
+                        <>
+                            <img 
+                                src="https://registry.npmmirror.com/@lobehub/icons-static-png/1.74.0/files/dark/gemini-color.png" 
+                                alt="" 
+                                className="w-4 h-4 object-contain" 
+                            />
+                            <span>Analyse via Gemini Pro</span>
+                        </>
+                    )}
+                </button>
+
+                {displayType === 'detail' && (
+                    <button
+                        onClick={onSaveAnalysis}
+                        disabled={isSaving || saveSuccess}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                    >
+                        {isSaving ? (
+                            <Spinner className="w-4 h-4 text-gray-600" />
+                        ) : saveSuccess ? (
+                            <CheckIcon className="w-4 h-4 text-green-500" />
+                        ) : (
+                            <>
+                                <img 
+                                    src="https://cdn-icons-png.flaticon.com/128/489/489707.png" 
+                                    alt="" 
+                                    className="w-4 h-4 object-contain" 
+                                />
+                                <span>Save notes</span>
+                            </>
+                        )}
+                    </button>
+                )}
+             </div>
+        </div>
+        
+        <div className="w-full h-px bg-gray-200 my-2"></div>
+
         <div className="flex items-center justify-center gap-4 flex-wrap md:flex-nowrap">
             <a
             href={perplexityUrl}
@@ -499,13 +541,13 @@ const SuccessDisplay = ({
             target="_blank"
             rel="noopener noreferrer"
             title="Copy & Open in Perplexity"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-black shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
+            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
             >
             {isPerplexityBusy ? (
                 <CheckIcon className="w-full h-full text-green-500" />
             ) : (
                 <img
-                src="https://framerusercontent.com/images/gcMkPKyj2RX8EOEja8A1GWvCb7E.jpg"
+                src="https://images.seeklogo.com/logo-png/61/1/perplexity-ai-icon-black-logo-png_seeklogo-611679.png"
                 alt="Perplexity Logo"
                 className="w-full h-full object-contain"
                 />
@@ -523,7 +565,7 @@ const SuccessDisplay = ({
                 <CheckIcon className="w-full h-full text-green-500" />
             ) : (
                 <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Google_Gemini_icon_2025.svg/2048px-Google_Gemini_icon_2025.svg.png"
+                src="https://img.icons8.com/ios_filled/512/gemini-ai.png"
                 alt="Gemini Logo"
                 className="w-full h-full object-contain"
                 />
@@ -547,74 +589,6 @@ const SuccessDisplay = ({
                 />
             )}
             </a>
-            {displayType === 'simple' && (
-            <button
-                onClick={onGenerateWithGemini}
-                disabled={isGeneratingWithGemini}
-                title="Generate Analysis with Gemini Pro"
-                className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-purple-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
-            >
-                {isGeneratingWithGemini ? (
-                <Spinner className="w-full h-full text-purple-600" />
-                ) : (
-                <AiIcon className="w-full h-full text-purple-600" />
-                )}
-            </button>
-            )}
-            
-            {displayType === 'detail' && (
-                <button
-                onClick={onSaveAnalysis}
-                disabled={isSaving || saveSuccess}
-                title="Save to Cloud"
-                className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-blue-100 shadow-md hover:shadow-lg active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-sm transition-all duration-200"
-                >
-                {isSaving ? (
-                    <Spinner className="w-full h-full text-blue-600" />
-                ) : saveSuccess ? (
-                    <CheckIcon className="w-full h-full text-green-500" />
-                ) : (
-                    <CloudUploadIcon className="w-full h-full text-blue-600" />
-                )}
-                </button>
-            )}
-            <button
-            onClick={handleCopy}
-            title="Copy Prompt"
-            className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-gray-200 shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
-            >
-            {isCopied ? (
-                <CheckIcon className="w-full h-full text-green-500" />
-            ) : (
-                <CopyIcon className="w-full h-full text-gray-600" />
-            )}
-            </button>
-        </div>
-        <div className="space-y-2">
-             <div className="flex gap-2">
-                <button
-                    onClick={onFetchIncomeStatement}
-                    disabled={isFetchingIncomeStatement}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-                >
-                    {isFetchingIncomeStatement ? (
-                        <Spinner className="w-4 h-4 text-gray-600" />
-                    ) : (
-                        <span>Income St.</span>
-                    )}
-                </button>
-                <button
-                    onClick={onFetchOverview}
-                    disabled={isFetchingOverview}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-                >
-                    {isFetchingOverview ? (
-                        <Spinner className="w-4 h-4 text-gray-600" />
-                    ) : (
-                        <span>Overview</span>
-                    )}
-                </button>
-             </div>
         </div>
       </div>
     </div>
