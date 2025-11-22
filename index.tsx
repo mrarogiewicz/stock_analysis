@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -245,13 +244,7 @@ const useStockAnalysisGenerator = () => {
         const data = await res.json();
         
         if (!res.ok) {
-             // If the API returns an error with debugUrl, try to use it in the error message display if needed,
-             // but currently fetch throws on !ok. We can attach it to the error object if we want more detail.
-             const errorMsg = data.error || 'Failed to fetch chart data.';
-             // Attach debug URL to error if present
-             const enhancedError = new Error(errorMsg);
-             if (data.debugUrl) (enhancedError as any).debugUrl = data.debugUrl;
-             throw enhancedError;
+            throw new Error(data.error || 'Failed to fetch chart data.');
         }
 
         setStockChartData(data);
@@ -259,10 +252,6 @@ const useStockAnalysisGenerator = () => {
     } catch (e) {
         console.error(e);
         setChartError(e.message);
-        // If we attached debugUrl in the catch block above, we could theoretically set it in state to display,
-        // but for now, the user asked to show it under the chart when data IS present (or at least response returned).
-        // To handle errors with debug links, we'd need to change chartError state structure.
-        // For this implementation, we focus on successful but empty data responses or debug purposes.
     } finally {
         setIsFetchingChart(false);
     }
@@ -559,7 +548,7 @@ const SuccessDisplay = ({
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
       <div className="text-center mb-4">
-        <p className="text-xl font-bold text-gray-800 min-h-[1.75rem]">
+        <p className="text-xl font-bold text-gray-800">
           {companyOverview?.Name}
         </p>
       </div>
@@ -1090,9 +1079,9 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white/95 border border-gray-200 shadow-lg p-3 rounded text-xs z-50">
+      <div className="bg-white/95 border border-gray-200 shadow-lg p-3 rounded text-xs">
         <p className="font-bold text-gray-700 mb-1">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index) => (
             <p key={index} style={{ color: entry.color }}>
                 {entry.name}: {
                     entry.name === 'Volume' 
@@ -1108,22 +1097,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const StockChartDisplay = ({ data, ticker }) => {
-    const [range, setRange] = useState('3M');
+    const [range, setRange] = useState('1Y');
 
     // Transform data
     const chartData = useMemo(() => {
-        if (!data) return [];
-        // console.log("Raw Chart Data:", data); // DEBUG
+        if (!data || !data['Time Series (Daily)']) return [];
         
-        // Robust check for Time Series key
-        const timeSeriesKey = Object.keys(data).find(k => k.includes("Time Series") || k.includes("Daily"));
-        const timeSeries = timeSeriesKey ? data[timeSeriesKey] : null;
-        
-        if (!timeSeries) {
-            console.warn('Time Series key not found in data object');
-            return [];
-        }
-        
+        const timeSeries = data['Time Series (Daily)'];
         return Object.keys(timeSeries).map(date => ({
             date,
             price: parseFloat(timeSeries[date]['4. close']),
@@ -1134,27 +1114,21 @@ const StockChartDisplay = ({ data, ticker }) => {
     // Filter data based on range
     const filteredData = useMemo(() => {
         if (range === 'All') return chartData;
-        if (!chartData.length) return [];
 
         const now = new Date();
-        const startDate = new Date();
+        let startDate = new Date();
 
         switch (range) {
             case '1W': startDate.setDate(now.getDate() - 7); break;
             case '1M': startDate.setMonth(now.getMonth() - 1); break;
             case '3M': startDate.setMonth(now.getMonth() - 3); break;
-            case 'YTD': startDate.setMonth(0, 1); break; // Jan 1st of current year
+            case 'YTD': startDate = new Date(now.getFullYear(), 0, 1); break;
             case '1Y': startDate.setFullYear(now.getFullYear() - 1); break;
             case '5Y': startDate.setFullYear(now.getFullYear() - 5); break;
             default: return chartData;
         }
 
-        // Convert to timestamps for consistent comparison
-        const startTime = startDate.getTime();
-        return chartData.filter(item => {
-            const itemTime = new Date(item.date).getTime();
-            return itemTime >= startTime;
-        });
+        return chartData.filter(item => new Date(item.date) >= startDate);
     }, [chartData, range]);
 
     if (!data) return null;
@@ -1164,76 +1138,51 @@ const StockChartDisplay = ({ data, ticker }) => {
             <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">Price & Volume Chart - {ticker}</h3>
             
             <div className="h-[300px] w-full">
-                {filteredData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                            <defs>
-                                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#38B6FF" stopOpacity={0.1}/>
-                                    <stop offset="95%" stopColor="#38B6FF" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                            <XAxis 
-                                dataKey="date" 
-                                tick={{fontSize: 10, fill: '#6b7280'}} 
-                                tickFormatter={(str) => {
-                                    if (!str) return '';
-                                    const date = new Date(str);
-                                    return isNaN(date.getTime()) ? str : date.toLocaleDateString(undefined, {month:'short', day:'numeric'});
-                                }}
-                                minTickGap={30}
-                            />
-                            <YAxis 
-                                yAxisId="right" 
-                                orientation="right" 
-                                tick={{fontSize: 10, fill: '#6b7280'}} 
-                                domain={['auto', 'auto']}
-                                tickFormatter={(val) => `$${val}`}
-                            />
-                            <YAxis 
-                                yAxisId="left" 
-                                orientation="left" 
-                                tick={{fontSize: 10, fill: '#9ca3af'}} 
-                                tickFormatter={(val) => `${(val/1000000).toFixed(0)}M`}
-                            />
-                            <Tooltip content={CustomTooltip} />
-                            <Bar 
-                                yAxisId="left" 
-                                dataKey="volume" 
-                                name="Volume" 
-                                fill="#e5e7eb" 
-                                barSize={20}
-                                isAnimationActive={false} 
-                            />
-                            <Line 
-                                yAxisId="right" 
-                                type="monotone" 
-                                dataKey="price" 
-                                name="Price" 
-                                stroke="#38B6FF" 
-                                strokeWidth={2} 
-                                dot={false} 
-                                activeDot={{ r: 4 }}
-                                isAnimationActive={false}
-                            />
-                        </ComposedChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm">
-                        <p>No data available for this time range.</p>
-                        {chartData.length > 0 && (
-                             <p className="text-xs mt-1 text-gray-400">
-                                (Filtered 0 of {chartData.length} total points)
-                             </p>
-                        )}
-                        {chartData.length === 0 && (
-                            <p className="text-xs mt-1 text-gray-400">
-                                (No daily data found in API response)
-                            </p>
-                        )}
-                    </div>
-                )}
+                <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                        <defs>
+                            <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#38B6FF" stopOpacity={0.1}/>
+                                <stop offset="95%" stopColor="#38B6FF" stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis 
+                            dataKey="date" 
+                            tick={{fontSize: 10, fill: '#6b7280'}} 
+                            tickFormatter={(str) => {
+                                const date = new Date(str);
+                                return date.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+                            }}
+                            minTickGap={30}
+                        />
+                        <YAxis 
+                            yAxisId="right" 
+                            orientation="right" 
+                            tick={{fontSize: 10, fill: '#6b7280'}} 
+                            domain={['auto', 'auto']}
+                            tickFormatter={(val) => `$${val}`}
+                        />
+                        <YAxis 
+                            yAxisId="left" 
+                            orientation="left" 
+                            tick={{fontSize: 10, fill: '#9ca3af'}} 
+                            tickFormatter={(val) => `${(val/1000000).toFixed(0)}M`}
+                        />
+                        <Tooltip content={CustomTooltip} />
+                        <Bar yAxisId="left" dataKey="volume" name="Volume" fill="#e5e7eb" barSize={20} />
+                        <Line 
+                            yAxisId="right" 
+                            type="monotone" 
+                            dataKey="price" 
+                            name="Price" 
+                            stroke="#38B6FF" 
+                            strokeWidth={2} 
+                            dot={false} 
+                            activeDot={{ r: 4 }} 
+                        />
+                    </ComposedChart>
+                </ResponsiveContainer>
             </div>
 
             <div className="flex justify-center gap-2 mt-4 flex-wrap">
@@ -1251,26 +1200,6 @@ const StockChartDisplay = ({ data, ticker }) => {
                     </button>
                 ))}
             </div>
-            
-            {/* Debug Link */}
-            {data.debugUrl && (
-                <div className="mt-6 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs break-all">
-                    <p className="font-bold text-gray-600 mb-1 flex items-center gap-1">
-                         <span>🐛</span> Debug API URL:
-                    </p>
-                    <a 
-                        href={data.debugUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-blue-500 hover:text-blue-700 hover:underline block"
-                    >
-                        {data.debugUrl}
-                    </a>
-                    <p className="text-gray-400 mt-1 italic">
-                        ⚠️ Warning: This link contains the API Key. Do not share.
-                    </p>
-                </div>
-            )}
         </div>
     );
 };
