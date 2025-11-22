@@ -20,7 +20,8 @@ export default async function handler(request, response) {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const genAIResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        // FIX: Use gemini-3-pro-preview for complex text tasks as per guidelines.
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
           systemInstruction: "You are a financial analyst providing a stock analysis. Respond in well-structured Markdown format. Use headings, bold text, bullet points, and tables to present the data clearly and professionally, similar to a GitHub README file.",
