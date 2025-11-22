@@ -549,7 +549,7 @@ const SuccessDisplay = ({
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
       <div className="text-center mb-4">
         <p className="text-xl font-bold text-gray-800">
-          {companyOverview?.Name || 'Analysis'}
+          {companyOverview?.Name}
         </p>
       </div>
 
