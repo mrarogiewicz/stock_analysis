@@ -733,7 +733,7 @@ const CompanyOverviewDisplay = ({ data }) => {
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsExpanded(!isExpanded) }}
           >
-             <p className={`text-gray-700 leading-relaxed text-sm transition-all duration-200 ${isExpanded ? '' : 'line-clamp-3'}`}>
+             <p className={`text-gray-700 leading-relaxed text-sm transition-all duration-200 ${isExpanded ? '' : 'line-clamp-1'}`}>
                 {data.Description}
              </p>
              {!isExpanded && (
@@ -756,9 +756,6 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <dt className="text-gray-500">PEG Ratio</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.PEGRatio)}</dd>
                 <dt className="text-gray-500">Price/Book</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.PriceToBookRatio)}</dd>
                 <dt className="text-gray-500">Price/Sales</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.PriceToSalesRatioTTM)}</dd>
-                <dt className="text-gray-500">EV/Revenue</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.EVToRevenue)}</dd>
-                <dt className="text-gray-500">EV/EBITDA</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.EVToEBITDA)}</dd>
-                <dt className="text-gray-500">Book Value</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.BookValue)}</dd>
              </dl>
           </div>
 
@@ -771,13 +768,9 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <dt className="text-gray-500">Revenue</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.RevenueTTM)}</dd>
                 <dt className="text-gray-500">Rev. Growth (YOY)</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.QuarterlyRevenueGrowthYOY)}</dd>
                 <dt className="text-gray-500">Gross Profit</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.GrossProfitTTM)}</dd>
-                <dt className="text-gray-500">EBITDA</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.EBITDA)}</dd>
                 <dt className="text-gray-500">Net Income (EPS)</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data.DilutedEPSTTM)}</dd>
-                 <dt className="text-gray-500">Earn. Growth (YOY)</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.QuarterlyEarningsGrowthYOY)}</dd>
                 <dt className="text-gray-500">Profit Margin</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.ProfitMargin)}</dd>
                 <dt className="text-gray-500">Operating Margin</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.OperatingMarginTTM)}</dd>
-                <dt className="text-gray-500">Return on Assets</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.ReturnOnAssetsTTM)}</dd>
-                <dt className="text-gray-500">Return on Equity</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.ReturnOnEquityTTM)}</dd>
              </dl>
           </div>
 
@@ -790,8 +783,7 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <dt className="text-gray-500">Shares Outstanding</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesOutstanding)}</dd>
                 <dt className="text-gray-500">Float Shares</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesFloat)}</dd>
                 <dt className="text-gray-500">% Insiders</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.PercentInsiders)}</dd>
-                <dt className="text-gray-500">% Institutions</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.PercentInstitutions)}</dd>
-                <dt className="text-gray-500">Beta</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.Beta)}</dd>
+                <dt className="text-gray-500">% Institutions</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInstitutions ? parseFloat(data.PercentInstitutions).toFixed(2) + '%' : 'N/A'}</dd>
              </dl>
           </div>
           
@@ -801,12 +793,10 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <span className="bg-orange-100 text-orange-600 p-1 rounded">📉</span> Trading & Dividends
              </h3>
              <dl className="grid grid-cols-2 gap-y-2 text-sm">
-                <dt className="text-gray-500">52 Week High</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['52WeekHigh'])}</dd>
-                <dt className="text-gray-500">52 Week Low</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['52WeekLow'])}</dd>
+                <dt className="text-gray-500">52 Week Range</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['52WeekLow'])} / {formatCurrency(data['52WeekHigh'])}</dd>
                 <dt className="text-gray-500">50 Day MA</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['50DayMovingAverage'])}</dd>
                 <dt className="text-gray-500">200 Day MA</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['200DayMovingAverage'])}</dd>
-                <dt className="text-gray-500">Dividend Yield</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.DividendYield)}</dd>
-                <dt className="text-gray-500">Div. Per Share</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data.DividendPerShare)}</dd>
+                <dt className="text-gray-500">Dividends (Yield/Share)</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.DividendYield)} / {formatCurrency(data.DividendPerShare)}</dd>
                 <dt className="text-gray-500">Ex-Dividend Date</dt> <dd className="text-right font-medium text-gray-900">{data.ExDividendDate !== 'None' ? data.ExDividendDate : 'N/A'}</dd>
              </dl>
           </div>
