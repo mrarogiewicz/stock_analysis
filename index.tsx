@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
+
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
 import {
@@ -43,6 +44,7 @@ const useStockAnalysisGenerator = () => {
   const [stockChartData, setStockChartData] = useState(null);
   const [isFetchingChart, setIsFetchingChart] = useState(false);
   const [chartError, setChartError] = useState(null);
+  const [chartRange, setChartRange] = useState('3M'); // Default range
 
   const [resultOrder, setResultOrder] = useState<string[]>([]);
 
@@ -231,16 +233,21 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker, addToResultOrder]);
 
-  const fetchStockChart = useCallback(async () => {
+  const fetchStockChart = useCallback(async (range = '3M') => {
     if (!generatedForTicker) return;
 
+    // If we are just switching range and chart is already displayed, we still fetch new data
+    // because we switch endpoints (Daily vs Weekly vs Monthly)
     addToResultOrder('chart');
     setIsFetchingChart(true);
     setChartError(null);
-    setStockChartData(null);
+    setChartRange(range);
+    // Don't clear data immediately to prevent UI flicker if possible, 
+    // but since schemas change (Intraday vs Daily), safer to clear or handle in UI
+    // setStockChartData(null); 
 
     try {
-        const res = await fetch(`/api/stock-chart?ticker=${generatedForTicker}`);
+        const res = await fetch(`/api/stock-chart?ticker=${generatedForTicker}&range=${range}`);
         const data = await res.json();
         
         if (!res.ok) {
@@ -252,6 +259,7 @@ const useStockAnalysisGenerator = () => {
     } catch (e) {
         console.error(e);
         setChartError(e.message);
+        setStockChartData(null); // Clear on error
     } finally {
         setIsFetchingChart(false);
     }
@@ -293,6 +301,7 @@ const useStockAnalysisGenerator = () => {
     isFetchingChart,
     chartError,
     fetchStockChart,
+    chartRange,
     resultOrder,
   };
 };
@@ -599,7 +608,7 @@ const SuccessDisplay = ({
                 </button>
 
                 <button
-                    onClick={onFetchStockChart}
+                    onClick={() => onFetchStockChart('3M')}
                     disabled={isFetchingChart}
                     className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
                 >
@@ -1096,110 +1105,177 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const StockChartDisplay = ({ data, ticker }) => {
-    const [range, setRange] = useState('1Y');
-
+const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) => {
+    
     // Transform data
     const chartData = useMemo(() => {
-        if (!data || !data['Time Series (Daily)']) return [];
+        if (!data) return [];
         
-        const timeSeries = data['Time Series (Daily)'];
+        let timeSeries = null;
+        let type = '';
+
+        // Detect data type based on keys present
+        if (data['Time Series (15min)']) {
+             timeSeries = data['Time Series (15min)'];
+             type = '15min';
+        } else if (data['Time Series (Daily)']) {
+             timeSeries = data['Time Series (Daily)'];
+             type = 'Daily';
+        } else if (data['Weekly Time Series']) {
+             timeSeries = data['Weekly Time Series'];
+             type = 'Weekly';
+        } else if (data['Monthly Time Series']) {
+             timeSeries = data['Monthly Time Series'];
+             type = 'Monthly';
+        }
+
+        if (!timeSeries) return [];
+
         return Object.keys(timeSeries).map(date => ({
             date,
             price: parseFloat(timeSeries[date]['4. close']),
-            volume: parseInt(timeSeries[date]['5. volume'])
+            volume: parseInt(timeSeries[date]['5. volume']),
+            type
         })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [data]);
 
     // Filter data based on range
     const filteredData = useMemo(() => {
+        if (chartData.length === 0) return [];
+
+        // For 'All', return everything
         if (range === 'All') return chartData;
 
-        const now = new Date();
-        let startDate = new Date();
+        // For 1M and 3M (Daily data), we might need to slice if API returns more than needed
+        // but mostly the API 'Daily' endpoint returns ~90 days compact, which is what we want for 3M.
+        // For 1M, we can slice the last ~20-22 trading days or just last 30 calendar days.
+        
+        const lastDate = new Date(chartData[chartData.length - 1].date);
+        let startDate = new Date(lastDate);
 
-        switch (range) {
-            case '1W': startDate.setDate(now.getDate() - 7); break;
-            case '1M': startDate.setMonth(now.getMonth() - 1); break;
-            case '3M': startDate.setMonth(now.getMonth() - 3); break;
-            case 'YTD': startDate = new Date(now.getFullYear(), 0, 1); break;
-            case '1Y': startDate.setFullYear(now.getFullYear() - 1); break;
-            case '5Y': startDate.setFullYear(now.getFullYear() - 5); break;
-            default: return chartData;
+        if (range === '1M') {
+            startDate.setMonth(lastDate.getMonth() - 1);
+        } else if (range === '1Y') {
+            startDate.setFullYear(lastDate.getFullYear() - 1);
+        } else if (range === '5Y') {
+            startDate.setFullYear(lastDate.getFullYear() - 5);
+        } else {
+            // For 1D, 3M, All, we generally trust the API response or show all available from that endpoint
+            return chartData;
         }
 
+        // Simple filtering
         return chartData.filter(item => new Date(item.date) >= startDate);
     }, [chartData, range]);
 
     if (!data) return null;
 
+    // Debug info for missing data
+    if (chartData.length === 0 && !isFetching) {
+         return (
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg p-6 text-center">
+                <p className="text-gray-600">No data available for this time range.</p>
+                {data['Information'] && <p className="text-xs text-gray-400 mt-2">{data['Information']}</p>}
+                 {data._debugUrl && (
+                    <div className="mt-4">
+                        <p className="text-xs text-red-400">Debug URL:</p>
+                        <a href={data._debugUrl} target="_blank" className="text-xs text-blue-500 underline break-all">{data._debugUrl}</a>
+                    </div>
+                )}
+            </div>
+         );
+    }
+
     return (
         <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">Price & Volume Chart - {ticker}</h3>
+            <div className="flex justify-between items-center mb-4">
+                 <h3 className="text-lg font-bold text-gray-800">Price & Volume - {ticker}</h3>
+                 {isFetching && <Spinner className="w-5 h-5 text-[#38B6FF]" />}
+            </div>
             
             <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                        <defs>
-                            <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#38B6FF" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#38B6FF" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis 
-                            dataKey="date" 
-                            tick={{fontSize: 10, fill: '#6b7280'}} 
-                            tickFormatter={(str) => {
-                                const date = new Date(str);
-                                return date.toLocaleDateString(undefined, {month:'short', day:'numeric'});
-                            }}
-                            minTickGap={30}
-                        />
-                        <YAxis 
-                            yAxisId="right" 
-                            orientation="right" 
-                            tick={{fontSize: 10, fill: '#6b7280'}} 
-                            domain={['auto', 'auto']}
-                            tickFormatter={(val) => `$${val}`}
-                        />
-                        <YAxis 
-                            yAxisId="left" 
-                            orientation="left" 
-                            tick={{fontSize: 10, fill: '#9ca3af'}} 
-                            tickFormatter={(val) => `${(val/1000000).toFixed(0)}M`}
-                        />
-                        <Tooltip content={CustomTooltip} />
-                        <Bar yAxisId="left" dataKey="volume" name="Volume" fill="#e5e7eb" barSize={20} />
-                        <Line 
-                            yAxisId="right" 
-                            type="monotone" 
-                            dataKey="price" 
-                            name="Price" 
-                            stroke="#38B6FF" 
-                            strokeWidth={2} 
-                            dot={false} 
-                            activeDot={{ r: 4 }} 
-                        />
-                    </ComposedChart>
-                </ResponsiveContainer>
+                {filteredData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                            <defs>
+                                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#38B6FF" stopOpacity={0.1}/>
+                                    <stop offset="95%" stopColor="#38B6FF" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis 
+                                dataKey="date" 
+                                tick={{fontSize: 10, fill: '#6b7280'}} 
+                                tickFormatter={(str) => {
+                                    const date = new Date(str);
+                                    // If 1D (Intraday), show time
+                                    if (range === '1D') {
+                                         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    }
+                                    // Else show date
+                                    return date.toLocaleDateString(undefined, {month:'short', day:'numeric', year: range === '5Y' || range === 'All' ? '2-digit' : undefined});
+                                }}
+                                minTickGap={30}
+                            />
+                            <YAxis 
+                                yAxisId="right" 
+                                orientation="right" 
+                                tick={{fontSize: 10, fill: '#6b7280'}} 
+                                domain={['auto', 'auto']}
+                                tickFormatter={(val) => `$${val}`}
+                            />
+                            <YAxis 
+                                yAxisId="left" 
+                                orientation="left" 
+                                tick={{fontSize: 10, fill: '#9ca3af'}} 
+                                tickFormatter={(val) => `${(val/1000000).toFixed(0)}M`}
+                            />
+                            <Tooltip content={CustomTooltip} />
+                            <Bar yAxisId="left" dataKey="volume" name="Volume" fill="#e5e7eb" barSize={20} isAnimationActive={false} />
+                            <Line 
+                                yAxisId="right" 
+                                type="monotone" 
+                                dataKey="price" 
+                                name="Price" 
+                                stroke="#38B6FF" 
+                                strokeWidth={2} 
+                                dot={false} 
+                                activeDot={{ r: 4 }}
+                                isAnimationActive={false}
+                            />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="flex h-full items-center justify-center text-gray-400 text-sm">
+                        No data for selected range
+                    </div>
+                )}
             </div>
 
             <div className="flex justify-center gap-2 mt-4 flex-wrap">
-                {['1W', '1M', '3M', 'YTD', '1Y', '5Y', 'All'].map((r) => (
+                {['1D', '1M', '3M', '1Y', '5Y', 'All'].map((r) => (
                     <button
                         key={r}
-                        onClick={() => setRange(r)}
+                        onClick={() => onRangeChange(r)}
+                        disabled={isFetching}
                         className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
                             range === r 
                             ? 'bg-[#38B6FF] text-white shadow-sm' 
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50'
                         }`}
                     >
                         {r}
                     </button>
                 ))}
             </div>
+            
+             {data._debugUrl && (
+                <div className="mt-4 border-t pt-2">
+                    <p className="text-[10px] text-gray-400">Debug: {data._requestedRange}</p>
+                    <a href={data._debugUrl} target="_blank" className="text-[10px] text-blue-400 underline break-all">{data._debugUrl}</a>
+                </div>
+            )}
         </div>
     );
 };
@@ -1237,6 +1313,7 @@ const App = () => {
     isFetchingChart,
     chartError,
     fetchStockChart,
+    chartRange,
     resultOrder,
   } = useStockAnalysisGenerator();
 
@@ -1263,11 +1340,24 @@ const App = () => {
           </div>
         );
       case 'chart':
-        if (!stockChartData && !chartError) return null;
+        if (!stockChartData && !chartError && !isFetchingChart) return null;
+        // Keep showing old data while fetching new range, or show loading state inside component
+        // But if we have error and no data, show error.
+        if (chartError && !stockChartData) return <div key="chart"><ErrorMessage message={chartError} /></div>;
+        
         return (
           <div key="chart">
              {chartError && <ErrorMessage message={chartError} />}
-             {stockChartData && <StockChartDisplay data={stockChartData} ticker={generatedForTicker} />}
+             {/* Render component even if fetching to show old data with spinner, or just spinner if no data */}
+             {(stockChartData || isFetchingChart) && (
+                 <StockChartDisplay 
+                    data={stockChartData} 
+                    ticker={generatedForTicker} 
+                    range={chartRange}
+                    onRangeChange={fetchStockChart}
+                    isFetching={isFetchingChart}
+                 />
+             )}
           </div>
         );
       case 'gemini':
