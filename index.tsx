@@ -29,6 +29,12 @@ const useStockAnalysisGenerator = () => {
   const [isFetchingOverview, setIsFetchingOverview] = useState(false);
   const [overviewError, setOverviewError] = useState(null);
 
+  const [resultOrder, setResultOrder] = useState<string[]>([]);
+
+  const addToResultOrder = useCallback((type) => {
+    setResultOrder(prev => [type, ...prev.filter(item => item !== type)]);
+  }, []);
+
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -46,6 +52,7 @@ const useStockAnalysisGenerator = () => {
     setIncomeStatementError(null);
     setCompanyOverview(null);
     setOverviewError(null);
+    setResultOrder([]);
 
 
     try {
@@ -127,6 +134,7 @@ const useStockAnalysisGenerator = () => {
     const content = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
     if (!content) return;
 
+    addToResultOrder('gemini');
     setIsGeneratingWithGemini(true);
     setGeminiError(null);
     setGeminiResponse('');
@@ -152,11 +160,12 @@ const useStockAnalysisGenerator = () => {
     } finally {
       setIsGeneratingWithGemini(false);
     }
-  }, [generatedSimpleContent, generatedDetailContent, displayType]);
+  }, [generatedSimpleContent, generatedDetailContent, displayType, addToResultOrder]);
 
   const fetchIncomeStatement = useCallback(async () => {
     if (!generatedForTicker) return;
 
+    addToResultOrder('income');
     setIsFetchingIncomeStatement(true);
     setIncomeStatementError(null);
     setIncomeStatement(null);
@@ -177,11 +186,12 @@ const useStockAnalysisGenerator = () => {
     } finally {
         setIsFetchingIncomeStatement(false);
     }
-  }, [generatedForTicker]);
+  }, [generatedForTicker, addToResultOrder]);
 
   const fetchCompanyOverview = useCallback(async () => {
     if (!generatedForTicker) return;
 
+    addToResultOrder('overview');
     setIsFetchingOverview(true);
     setOverviewError(null);
     setCompanyOverview(null);
@@ -202,7 +212,7 @@ const useStockAnalysisGenerator = () => {
     } finally {
         setIsFetchingOverview(false);
     }
-  }, [generatedForTicker]);
+  }, [generatedForTicker, addToResultOrder]);
 
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
@@ -236,6 +246,7 @@ const useStockAnalysisGenerator = () => {
     isFetchingOverview,
     overviewError,
     fetchCompanyOverview,
+    resultOrder,
   };
 };
 
@@ -1015,11 +1026,43 @@ const App = () => {
     isFetchingOverview,
     overviewError,
     fetchCompanyOverview,
+    resultOrder,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
   const contentToDisplay = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
   const hasContent = !!(contentToDisplay && !error);
+
+  const renderResultItem = (type) => {
+    switch (type) {
+      case 'overview':
+        if (!companyOverview && !overviewError) return null;
+        return (
+          <div key="overview">
+            {overviewError && <ErrorMessage message={overviewError} />}
+            {companyOverview && <CompanyOverviewDisplay data={companyOverview} />}
+          </div>
+        );
+      case 'income':
+        if (!incomeStatement && !incomeStatementError) return null;
+        return (
+          <div key="income">
+            {incomeStatementError && <ErrorMessage message={incomeStatementError} />}
+            {incomeStatement && <IncomeStatementDisplay data={incomeStatement} ticker={generatedForTicker} />}
+          </div>
+        );
+      case 'gemini':
+         if ((!geminiResponse && !geminiError)) return null;
+         return (
+          <div key="gemini">
+            {geminiError && <ErrorMessage message={geminiError} />}
+            <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800 flex flex-col">
@@ -1069,25 +1112,8 @@ const App = () => {
           {hasContent && (
             <div className="md:flex-1 min-w-0">
               <div className="space-y-8">
+                {resultOrder.map(type => renderResultItem(type))}
                 <Preview content={contentToDisplay} />
-                
-                {(overviewError) && <ErrorMessage message={overviewError} />}
-                {(companyOverview) && <CompanyOverviewDisplay data={companyOverview} />}
-
-                {(geminiResponse || geminiError) && (
-                  <div>
-                    <ErrorMessage message={geminiError} />
-                    <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
-                  </div>
-                )}
-                
-                {(incomeStatement || incomeStatementError) && (
-                    <div>
-                        <ErrorMessage message={incomeStatementError} />
-                        <IncomeStatementDisplay data={incomeStatement} ticker={generatedForTicker} />
-                    </div>
-                )}
-
               </div>
             </div>
           )}
