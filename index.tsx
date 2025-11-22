@@ -1127,7 +1127,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
              }
              timeSeries = data.intraday ? data.intraday['Time Series (15min)'] : null;
              type = '15min';
-        } else if (range === '1M' || range === '3M') {
+        } else if (range === '1W' || range === '1M' || range === '3M') {
              if (data.daily?.error) {
                  setParsingError(data.daily.error);
                  return [];
@@ -1171,7 +1171,9 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         const lastDate = new Date(chartData[chartData.length - 1].date);
         let startDate = new Date(lastDate);
 
-        if (range === '1M') {
+        if (range === '1W') {
+            startDate.setDate(lastDate.getDate() - 7);
+        } else if (range === '1M') {
             startDate.setMonth(lastDate.getMonth() - 1);
         } else if (range === '3M') {
              startDate.setMonth(lastDate.getMonth() - 3);
@@ -1192,6 +1194,14 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         return chartData.filter(item => new Date(item.date).getTime() >= startTime);
     }, [chartData, range]);
 
+    const dateRangeText = useMemo(() => {
+        if (filteredData.length === 0) return '';
+        const start = new Date(filteredData[0].date);
+        const end = new Date(filteredData[filteredData.length - 1].date);
+        const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}`;
+    }, [filteredData]);
+
     if (!data) return null;
 
     // Check for missing data
@@ -1205,15 +1215,6 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                     {/* Debug info about available keys */}
                      Debug: Keys present in response: {Object.keys(data).filter(k => data[k] && !data[k].error).join(', ')}
                 </div>
-                 {data && (
-                    <div className="mt-4 border-t pt-2 text-[10px] text-gray-400 break-all">
-                        <p><strong>Debug URLs (DO NOT SHARE):</strong></p>
-                        <p>Intraday: <a href={data.intraday?._debugUrl} target="_blank" rel="noopener noreferrer">{data.intraday?._debugUrl}</a></p>
-                        <p>Daily: <a href={data.daily?._debugUrl} target="_blank" rel="noopener noreferrer">{data.daily?._debugUrl}</a></p>
-                        <p>Weekly: <a href={data.weekly?._debugUrl} target="_blank" rel="noopener noreferrer">{data.weekly?._debugUrl}</a></p>
-                        <p>Monthly: <a href={data.monthly?._debugUrl} target="_blank" rel="noopener noreferrer">{data.monthly?._debugUrl}</a></p>
-                    </div>
-                )}
             </div>
          );
     }
@@ -1221,7 +1222,10 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
     return (
         <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
             <div className="flex justify-between items-center mb-4">
-                 <h3 className="text-lg font-bold text-gray-800">Price & Volume - {ticker}</h3>
+                 <div>
+                    <h3 className="text-lg font-bold text-gray-800">Price & Volume - {ticker}</h3>
+                    <p className="text-xs text-gray-500 mt-1">{dateRangeText}</p>
+                 </div>
                  {isFetching && <Spinner className="w-5 h-5 text-[#38B6FF]" />}
             </div>
             
@@ -1246,9 +1250,22 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                                          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                     }
                                     // Else show date
-                                    return date.toLocaleDateString(undefined, {month:'short', day:'numeric', year: range === '5Y' || range === 'All' ? '2-digit' : undefined});
+                                    // Fix: Type assertion to compatible interface
+                                    return date.toLocaleDateString(undefined, {
+                                        month:'short', 
+                                        day:'numeric', 
+                                        year: range === '5Y' || range === 'All' ? '2-digit' : undefined
+                                    } as Intl.DateTimeFormatOptions);
                                 }}
                                 minTickGap={30}
+                            />
+                            {/* Hide Left YAxis visual elements but keep it for scaling */}
+                            <YAxis 
+                                yAxisId="left" 
+                                orientation="left" 
+                                width={0}
+                                tick={false}
+                                domain={[0, 'dataMax * 4']}
                             />
                             <YAxis 
                                 yAxisId="right" 
@@ -1256,12 +1273,6 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                                 tick={{fontSize: 10, fill: '#6b7280'}} 
                                 domain={['auto', 'auto']}
                                 tickFormatter={(val) => `$${val}`}
-                            />
-                            <YAxis 
-                                yAxisId="left" 
-                                orientation="left" 
-                                tick={{fontSize: 10, fill: '#9ca3af'}} 
-                                tickFormatter={(val) => `${(val/1000000).toFixed(0)}M`}
                             />
                             <Tooltip content={CustomTooltip} />
                             <Bar yAxisId="left" dataKey="volume" name="Volume" fill="#e5e7eb" barSize={20} isAnimationActive={false} />
@@ -1286,7 +1297,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
             </div>
 
             <div className="flex justify-center gap-2 mt-4 flex-wrap">
-                {['1D', '1M', '3M', 'YTD', '1Y', '5Y', 'All'].map((r) => (
+                {['1D', '1W', '1M', '3M', 'YTD', '1Y', '5Y', 'All'].map((r) => (
                     <button
                         key={r}
                         onClick={() => onRangeChange(r)}
@@ -1300,16 +1311,6 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                     </button>
                 ))}
             </div>
-            
-             {data && (
-                <div className="mt-4 border-t pt-2 text-[10px] text-gray-400 break-all">
-                    <p><strong>Debug URLs (DO NOT SHARE):</strong></p>
-                    <p>Intraday: <a href={data.intraday?._debugUrl} target="_blank" rel="noopener noreferrer">{data.intraday?._debugUrl}</a></p>
-                    <p>Daily: <a href={data.daily?._debugUrl} target="_blank" rel="noopener noreferrer">{data.daily?._debugUrl}</a></p>
-                    <p>Weekly: <a href={data.weekly?._debugUrl} target="_blank" rel="noopener noreferrer">{data.weekly?._debugUrl}</a></p>
-                    <p>Monthly: <a href={data.monthly?._debugUrl} target="_blank" rel="noopener noreferrer">{data.monthly?._debugUrl}</a></p>
-                </div>
-            )}
         </div>
     );
 };
