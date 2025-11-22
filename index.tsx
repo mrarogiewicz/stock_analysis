@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -25,6 +26,10 @@ const useStockAnalysisGenerator = () => {
   const [isFetchingIncomeStatement, setIsFetchingIncomeStatement] = useState(false);
   const [incomeStatementError, setIncomeStatementError] = useState(null);
 
+  const [companyOverview, setCompanyOverview] = useState(null);
+  const [isFetchingOverview, setIsFetchingOverview] = useState(false);
+  const [overviewError, setOverviewError] = useState(null);
+
 
   const generateAnalysis = useCallback(async () => {
     if (!ticker.trim()) {
@@ -40,6 +45,8 @@ const useStockAnalysisGenerator = () => {
     setGeminiError(null);
     setIncomeStatement(null);
     setIncomeStatementError(null);
+    setCompanyOverview(null);
+    setOverviewError(null);
 
 
     try {
@@ -172,6 +179,31 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker]);
 
+  const fetchCompanyOverview = useCallback(async () => {
+    if (!generatedForTicker) return;
+
+    setIsFetchingOverview(true);
+    setOverviewError(null);
+    setCompanyOverview(null);
+
+    try {
+        const res = await fetch(`/api/company-overview?ticker=${generatedForTicker}`);
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to fetch company overview.');
+        }
+
+        setCompanyOverview(data);
+
+    } catch (e) {
+        console.error(e);
+        setOverviewError(e.message);
+    } finally {
+        setIsFetchingOverview(false);
+    }
+  }, [generatedForTicker]);
+
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -200,6 +232,10 @@ const useStockAnalysisGenerator = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
+    companyOverview,
+    isFetchingOverview,
+    overviewError,
+    fetchCompanyOverview,
   };
 };
 
@@ -341,7 +377,21 @@ const ErrorMessage = ({ message }) => {
   );
 };
 
-const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis, displayType, onDisplayTypeChange, onGenerateWithGemini, isGeneratingWithGemini, onFetchIncomeStatement, isFetchingIncomeStatement }) => {
+const SuccessDisplay = ({ 
+    ticker, 
+    content, 
+    isSaving, 
+    saveSuccess, 
+    onSaveAnalysis, 
+    displayType, 
+    onDisplayTypeChange, 
+    onGenerateWithGemini, 
+    isGeneratingWithGemini, 
+    onFetchIncomeStatement, 
+    isFetchingIncomeStatement,
+    onFetchOverview,
+    isFetchingOverview
+}) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
@@ -541,20 +591,30 @@ const SuccessDisplay = ({ ticker, content, isSaving, saveSuccess, onSaveAnalysis
             </button>
         </div>
         <div className="space-y-2">
-            <button
-                onClick={onFetchIncomeStatement}
-                disabled={isFetchingIncomeStatement}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-            >
-                {isFetchingIncomeStatement ? (
-                    <>
-                        <Spinner className="w-5 h-5 text-gray-600" />
-                        <span>Fetching Financials...</span>
-                    </>
-                ) : (
-                    <span>Income Statement</span>
-                )}
-            </button>
+             <div className="flex gap-2">
+                <button
+                    onClick={onFetchIncomeStatement}
+                    disabled={isFetchingIncomeStatement}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                >
+                    {isFetchingIncomeStatement ? (
+                        <Spinner className="w-4 h-4 text-gray-600" />
+                    ) : (
+                        <span>Income St.</span>
+                    )}
+                </button>
+                <button
+                    onClick={onFetchOverview}
+                    disabled={isFetchingOverview}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                >
+                    {isFetchingOverview ? (
+                        <Spinner className="w-4 h-4 text-gray-600" />
+                    ) : (
+                        <span>Overview</span>
+                    )}
+                </button>
+             </div>
         </div>
       </div>
     </div>
@@ -617,6 +677,171 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
         </div>
       </div>
     );
+};
+
+const CompanyOverviewDisplay = ({ data }) => {
+  if (!data) return null;
+  
+  // Helper to format large numbers
+  const formatLargeNumber = (num) => {
+     if (!num || num === 'None') return 'N/A';
+     const n = parseFloat(num);
+     if (isNaN(n)) return num;
+     if (n >= 1.0e+12) return (n / 1.0e+12).toFixed(2) + " T";
+     if (n >= 1.0e+9) return (n / 1.0e+9).toFixed(2) + " B";
+     if (n >= 1.0e+6) return (n / 1.0e+6).toFixed(2) + " M";
+     return n.toLocaleString();
+  }
+
+  // Helper for currency
+  const formatCurrency = (num) => {
+      if (!num || num === 'None') return 'N/A';
+      const n = parseFloat(num);
+      return isNaN(n) ? num : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  }
+
+  // Helper for percent
+  const formatPercent = (num) => {
+      if (!num || num === 'None') return 'N/A';
+      const n = parseFloat(num);
+      return isNaN(n) ? num : (n * 100).toFixed(2) + "%";
+  }
+  
+  // Helper for simple number
+  const formatNumber = (num) => {
+      if (!num || num === 'None') return 'N/A';
+      const n = parseFloat(num);
+      return isNaN(n) ? num : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  return (
+    <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
+       {/* Header: Basic Info */}
+       <div className="border-b border-gray-200 pb-4 mb-6">
+          <div className="flex justify-between items-start">
+             <div>
+                <h2 className="text-2xl font-bold text-gray-800">{data.Name} ({data.Symbol})</h2>
+                <div className="flex flex-wrap gap-2 mt-3 text-sm text-gray-600">
+                   <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">{data.Exchange}</span>
+                   <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">{data.Sector}</span>
+                   <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">{data.Industry}</span>
+                   <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">{data.Country}</span>
+                </div>
+             </div>
+             <div className="text-right text-xs text-gray-500 hidden sm:block">
+                <p>Fiscal Year End: {data.FiscalYearEnd}</p>
+                <p>Latest Qtr: {data.LatestQuarter}</p>
+             </div>
+          </div>
+          <p className="mt-4 text-gray-700 leading-relaxed text-sm">{data.Description}</p>
+       </div>
+
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+          
+          {/* Valuation */}
+          <div>
+             <h3 className="font-semibold text-gray-800 mb-3 text-base border-b pb-2 border-gray-100 flex items-center gap-2">
+                <span className="bg-blue-100 text-blue-600 p-1 rounded">💰</span> Valuation
+             </h3>
+             <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                <dt className="text-gray-500">Market Cap</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.MarketCapitalization)}</dd>
+                <dt className="text-gray-500">Trailing P/E</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.TrailingPE)}</dd>
+                <dt className="text-gray-500">Forward P/E</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.ForwardPE)}</dd>
+                <dt className="text-gray-500">PEG Ratio</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.PEGRatio)}</dd>
+                <dt className="text-gray-500">Price/Book</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.PriceToBookRatio)}</dd>
+                <dt className="text-gray-500">Price/Sales</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.PriceToSalesRatioTTM)}</dd>
+                <dt className="text-gray-500">EV/Revenue</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.EVToRevenue)}</dd>
+                <dt className="text-gray-500">EV/EBITDA</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.EVToEBITDA)}</dd>
+                <dt className="text-gray-500">Book Value</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.BookValue)}</dd>
+             </dl>
+          </div>
+
+          {/* Financial Performance */}
+          <div>
+             <h3 className="font-semibold text-gray-800 mb-3 text-base border-b pb-2 border-gray-100 flex items-center gap-2">
+                <span className="bg-green-100 text-green-600 p-1 rounded">📈</span> Financials (TTM)
+             </h3>
+             <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                <dt className="text-gray-500">Revenue</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.RevenueTTM)}</dd>
+                <dt className="text-gray-500">Rev. Growth (YOY)</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.QuarterlyRevenueGrowthYOY)}</dd>
+                <dt className="text-gray-500">Gross Profit</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.GrossProfitTTM)}</dd>
+                <dt className="text-gray-500">EBITDA</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.EBITDA)}</dd>
+                <dt className="text-gray-500">Net Income (EPS)</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data.DilutedEPSTTM)}</dd>
+                 <dt className="text-gray-500">Earn. Growth (YOY)</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.QuarterlyEarningsGrowthYOY)}</dd>
+                <dt className="text-gray-500">Profit Margin</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.ProfitMargin)}</dd>
+                <dt className="text-gray-500">Operating Margin</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.OperatingMarginTTM)}</dd>
+                <dt className="text-gray-500">Return on Assets</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.ReturnOnAssetsTTM)}</dd>
+                <dt className="text-gray-500">Return on Equity</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.ReturnOnEquityTTM)}</dd>
+             </dl>
+          </div>
+
+          {/* Share Statistics */}
+          <div>
+             <h3 className="font-semibold text-gray-800 mb-3 text-base border-b pb-2 border-gray-100 flex items-center gap-2">
+                <span className="bg-purple-100 text-purple-600 p-1 rounded">📊</span> Share Stats
+             </h3>
+             <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                <dt className="text-gray-500">Shares Outstanding</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesOutstanding)}</dd>
+                <dt className="text-gray-500">Float Shares</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesFloat)}</dd>
+                <dt className="text-gray-500">% Insiders</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.PercentInsiders)}</dd>
+                <dt className="text-gray-500">% Institutions</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.PercentInstitutions)}</dd>
+                <dt className="text-gray-500">Beta</dt> <dd className="text-right font-medium text-gray-900">{formatNumber(data.Beta)}</dd>
+             </dl>
+          </div>
+          
+          {/* Trading & Dividends */}
+          <div>
+             <h3 className="font-semibold text-gray-800 mb-3 text-base border-b pb-2 border-gray-100 flex items-center gap-2">
+                <span className="bg-orange-100 text-orange-600 p-1 rounded">📉</span> Trading & Dividends
+             </h3>
+             <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                <dt className="text-gray-500">52 Week High</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['52WeekHigh'])}</dd>
+                <dt className="text-gray-500">52 Week Low</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['52WeekLow'])}</dd>
+                <dt className="text-gray-500">50 Day MA</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['50DayMovingAverage'])}</dd>
+                <dt className="text-gray-500">200 Day MA</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['200DayMovingAverage'])}</dd>
+                <dt className="text-gray-500">Dividend Yield</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.DividendYield)}</dd>
+                <dt className="text-gray-500">Div. Per Share</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data.DividendPerShare)}</dd>
+                <dt className="text-gray-500">Ex-Dividend Date</dt> <dd className="text-right font-medium text-gray-900">{data.ExDividendDate !== 'None' ? data.ExDividendDate : 'N/A'}</dd>
+             </dl>
+          </div>
+
+          {/* Analyst Ratings */}
+          <div className="md:col-span-2">
+             <h3 className="font-semibold text-gray-800 mb-3 text-base border-b pb-2 border-gray-100 flex items-center gap-2">
+                <span className="bg-yellow-100 text-yellow-600 p-1 rounded">⭐</span> Analyst Ratings
+             </h3>
+             <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="text-sm">
+                    <span className="text-gray-500">Target Price: </span>
+                    <span className="font-bold text-gray-900 text-lg">{formatCurrency(data.AnalystTargetPrice)}</span>
+                </div>
+                <div className="flex flex-grow justify-end gap-1 sm:gap-4 text-xs sm:text-sm font-medium text-gray-700">
+                   <div className="flex flex-col items-center p-2 bg-green-50 rounded border border-green-100 min-w-[60px]">
+                       <span className="text-green-700 font-bold text-lg">{data.AnalystRatingStrongBuy}</span>
+                       <span className="text-gray-500 uppercase text-[10px]">Str Buy</span>
+                   </div>
+                   <div className="flex flex-col items-center p-2 bg-green-50 rounded border border-green-100 min-w-[60px]">
+                       <span className="text-green-600 font-bold text-lg">{data.AnalystRatingBuy}</span>
+                       <span className="text-gray-500 uppercase text-[10px]">Buy</span>
+                   </div>
+                   <div className="flex flex-col items-center p-2 bg-yellow-50 rounded border border-yellow-100 min-w-[60px]">
+                       <span className="text-yellow-600 font-bold text-lg">{data.AnalystRatingHold}</span>
+                       <span className="text-gray-500 uppercase text-[10px]">Hold</span>
+                   </div>
+                   <div className="flex flex-col items-center p-2 bg-orange-50 rounded border border-orange-100 min-w-[60px]">
+                       <span className="text-orange-600 font-bold text-lg">{data.AnalystRatingSell}</span>
+                       <span className="text-gray-500 uppercase text-[10px]">Sell</span>
+                   </div>
+                   <div className="flex flex-col items-center p-2 bg-red-50 rounded border border-red-100 min-w-[60px]">
+                       <span className="text-red-700 font-bold text-lg">{data.AnalystRatingStrongSell}</span>
+                       <span className="text-gray-500 uppercase text-[10px]">Str Sell</span>
+                   </div>
+                </div>
+             </div>
+          </div>
+       </div>
+    </div>
+  );
 };
 
 const IncomeStatementDisplay = ({ data, ticker }) => {
@@ -807,6 +1032,10 @@ const App = () => {
     isFetchingIncomeStatement,
     incomeStatementError,
     fetchIncomeStatement,
+    companyOverview,
+    isFetchingOverview,
+    overviewError,
+    fetchCompanyOverview,
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
@@ -848,6 +1077,8 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchIncomeStatement={fetchIncomeStatement}
                   isFetchingIncomeStatement={isFetchingIncomeStatement}
+                  onFetchOverview={fetchCompanyOverview}
+                  isFetchingOverview={isFetchingOverview}
                 />
                 <ErrorMessage message={saveError} />
               </div>
@@ -860,6 +1091,9 @@ const App = () => {
               <div className="space-y-8">
                 <Preview content={contentToDisplay} />
                 
+                {(overviewError) && <ErrorMessage message={overviewError} />}
+                {(companyOverview) && <CompanyOverviewDisplay data={companyOverview} />}
+
                 {(geminiResponse || geminiError) && (
                   <div>
                     <ErrorMessage message={geminiError} />
