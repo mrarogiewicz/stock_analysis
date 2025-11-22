@@ -288,12 +288,19 @@ const Spinner = (props) => (
 );
 
 // --- COMPONENTS ---
-const Header = ({ isTickerPresent }) => {
+const Header = ({ isTickerPresent, generatedForTicker }) => {
   return (
     <header className="text-center mb-8">
       <div className="inline-flex items-center justify-center gap-3 mb-4">
-        <ChartIcon className={`w-8 h-8 transition-colors duration-300 ${isTickerPresent ? 'text-[#38B6FF]' : 'text-black'}`} />
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 whitespace-nowrap">Stock Analysis Generator</h1>
+        <ChartIcon className={`w-8 h-8 transition-colors duration-300 ${isTickerPresent || generatedForTicker ? 'text-[#38B6FF]' : 'text-black'}`} />
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 whitespace-nowrap">
+          Stock Analysis Generator
+          {generatedForTicker && (
+            <span className="ml-3 text-2xl font-semibold text-[#38B6FF]">
+              [{generatedForTicker}]
+            </span>
+          )}
+        </h1>
       </div>
     </header>
   );
@@ -475,7 +482,8 @@ const ErrorMessage = ({ message }) => {
 };
 
 const SuccessDisplay = ({ 
-    ticker, 
+    ticker,
+    companyOverview,
     isSaving, 
     saveSuccess, 
     onSaveAnalysis, 
@@ -491,11 +499,8 @@ const SuccessDisplay = ({
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
       <div className="text-center mb-4">
-        <p className="font-medium text-gray-700">
-          Name of the company -{' '}
-          <span style={{ color: '#38B6FF' }} className="font-bold">
-            {ticker}
-          </span>
+        <p className="text-xl font-bold text-gray-800">
+          {companyOverview?.Name || 'Analysis'}
         </p>
       </div>
 
@@ -1074,7 +1079,7 @@ const App = () => {
   return (
     <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800 flex flex-col">
       <div className="container mx-auto px-2 py-8 flex flex-col flex-grow">
-        <Header isTickerPresent={isTickerPresent} />
+        <Header isTickerPresent={isTickerPresent} generatedForTicker={generatedForTicker} />
 
         <div className={`md:flex md:gap-8 flex-grow ${hasContent ? 'md:items-start' : 'md:items-center md:justify-center'}`}>
           
@@ -1097,7 +1102,8 @@ const App = () => {
             {hasContent && (
               <div className="mb-8 md:mb-0">
                 <SuccessDisplay 
-                  ticker={generatedForTicker} 
+                  ticker={generatedForTicker}
+                  companyOverview={companyOverview}
                   isSaving={isSaving}
                   saveSuccess={saveSuccess}
                   onSaveAnalysis={saveAnalysis}
