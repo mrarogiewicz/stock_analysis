@@ -35,9 +35,6 @@ async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
             if (data["Error Message"]) {
                 // We treat this as a failure for this specific key/request
                 console.error(`API Error with key ending ...${apiKey?.slice(-4)}: ${data["Error Message"]}`);
-                // We might want to try another key if it's weird, or just return the error
-                // For now, let's assume an error message means the ticker is wrong or param is wrong, 
-                // but strictly, we return it so the caller can decide.
                 return { error: data["Error Message"] };
             }
 
@@ -85,17 +82,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const baseMonthly = `https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY&symbol=${ticker}`;
 
     try {
-        // We fetch sequentially to respect the key rotation logic without triggering race conditions on the keys array
-        // (though fetchWithKeyRotation uses a local copy of the array, the endpoints are distinct).
-        // Parallel fetching is faster but risks hitting rate limits faster if keys are shared.
-        // Given the requirement "run all endpoints", we do them all.
-
-        const [intraday, daily, weekly, monthly] = await Promise.all([
-            fetchWithKeyRotation(baseIntraday, keys),
-            fetchWithKeyRotation(baseDaily, keys),
-            fetchWithKeyRotation(baseWeekly, keys),
-            fetchWithKeyRotation(baseMonthly, keys)
-        ]);
+        // Fetch sequentially to respect the key rotation logic and avoid hitting concurrency limits with limited keys.
+        const intraday = await fetchWithKeyRotation(baseIntraday, keys);
+        const daily = await fetchWithKeyRotation(baseDaily, keys);
+        const weekly = await fetchWithKeyRotation(baseWeekly, keys);
+        const monthly = await fetchWithKeyRotation(baseMonthly, keys);
 
         // Construct composite response
         const responseData = {
@@ -103,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             daily,
             weekly,
             monthly,
-            _debugUrl: `Fetched for ${ticker} using pooled keys.`
+            _debugUrl: `Fetched for ${ticker} using pooled keys (Sequential).`
         };
 
         return res.status(200).json(responseData);

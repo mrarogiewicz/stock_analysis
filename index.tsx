@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -238,13 +237,7 @@ const useStockAnalysisGenerator = () => {
 
     addToResultOrder('chart');
     
-    // If we already have data, don't fetch again.
-    // But we need to ensure we are fetching for the *current* ticker.
-    // We will just fetch every time "Chart" is clicked if we assume the user wants fresh data,
-    // or we could check if stockChartData exists.
-    // Given the key rotation requirement, fetching fresh on click is safer than aggressive caching if ticker changes.
-    // Let's fetch fresh.
-    
+    // Fetch fresh on click
     setIsFetchingChart(true);
     setChartError(null);
     setStockChartData(null); 
@@ -1115,25 +1108,43 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) => {
-    
+    const [parsingError, setParsingError] = useState(null);
+
     // Transform data based on range and available datasets
     const chartData = useMemo(() => {
         if (!data) return [];
+        setParsingError(null);
         
         let timeSeries = null;
         let type = '';
 
         // Pick the correct dataset from the composite object based on the current range
         if (range === '1D') {
+             if (data.intraday?.error) {
+                 setParsingError(data.intraday.error);
+                 return [];
+             }
              timeSeries = data.intraday ? data.intraday['Time Series (15min)'] : null;
              type = '15min';
         } else if (range === '1M' || range === '3M') {
+             if (data.daily?.error) {
+                 setParsingError(data.daily.error);
+                 return [];
+             }
              timeSeries = data.daily ? data.daily['Time Series (Daily)'] : null;
              type = 'Daily';
         } else if (range === '1Y' || range === 'YTD') {
+             if (data.weekly?.error) {
+                 setParsingError(data.weekly.error);
+                 return [];
+             }
              timeSeries = data.weekly ? data.weekly['Weekly Time Series'] : null;
              type = 'Weekly';
         } else if (range === '5Y' || range === 'All') {
+             if (data.monthly?.error) {
+                 setParsingError(data.monthly.error);
+                 return [];
+             }
              timeSeries = data.monthly ? data.monthly['Monthly Time Series'] : null;
              type = 'Monthly';
         }
@@ -1187,10 +1198,15 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
     if (filteredData.length === 0 && !isFetching) {
          return (
             <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg p-6 text-center">
-                <p className="text-gray-600">No data available for range {range}.</p>
+                <p className="text-gray-600 font-semibold">No data available for range {range}.</p>
+                {parsingError && <p className="text-red-500 text-xs mt-2">{parsingError}</p>}
+                <div className="mt-2 text-xs text-gray-400">
+                    {/* Debug info about available keys */}
+                     Debug: Keys present in response: {Object.keys(data).filter(k => data[k] && !data[k].error).join(', ')}
+                </div>
                  {data._debugUrl && (
                     <div className="mt-4">
-                         <p className="text-xs text-gray-400">Data loaded via pooled request.</p>
+                         <p className="text-xs text-gray-400">{data._debugUrl}</p>
                     </div>
                 )}
             </div>
