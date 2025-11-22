@@ -1138,6 +1138,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
              timeSeries = data.intraday ? data.intraday['Time Series (15min)'] : null;
              type = '15min';
         } else if (range === '1W') {
+             // 1W now uses intraday30 with specific params
              if (data.intraday30?.error) {
                  setParsingError(data.intraday30.error);
                  return [];
@@ -1232,14 +1233,22 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
 
     if (!data) return null;
 
-    // Check for missing data
-    if (filteredData.length === 0 && !isFetching) {
+    // Check for missing data or errors
+    if ((filteredData.length === 0 && !isFetching) || parsingError) {
          return (
-            <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg p-6 text-center">
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg p-6 text-center break-words">
                 <p className="text-gray-600 font-semibold">No data available for range {range}.</p>
                 {parsingError && <p className="text-red-500 text-xs mt-2">{parsingError}</p>}
-                <div className="mt-2 text-xs text-gray-400">
-                     Debug: Keys present in response: {Object.keys(data).filter(k => data[k] && !data[k].error).join(', ')}
+                
+                <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200 text-left">
+                     <p className="text-xs font-bold text-gray-500 mb-2">Debug Endpoint URLs (Click to test):</p>
+                     <ul className="space-y-1 text-[10px] text-blue-600">
+                         <li><strong>Intraday (1D):</strong> <a href={data.intraday?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.intraday?._debugUrl || 'N/A'}</a></li>
+                         <li><strong>Intraday (1W):</strong> <a href={data.intraday30?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.intraday30?._debugUrl || 'N/A'}</a></li>
+                         <li><strong>Daily (1M/3M):</strong> <a href={data.daily?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.daily?._debugUrl || 'N/A'}</a></li>
+                         <li><strong>Weekly (1Y/YTD):</strong> <a href={data.weekly?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.weekly?._debugUrl || 'N/A'}</a></li>
+                         <li><strong>Monthly (5Y/All):</strong> <a href={data.monthly?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.monthly?._debugUrl || 'N/A'}</a></li>
+                     </ul>
                 </div>
             </div>
          );
@@ -1268,8 +1277,6 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                             <XAxis 
                                 dataKey="timestamp" 
-                                type="number"
-                                domain={['dataMin', 'dataMax']}
                                 tick={{fontSize: 10, fill: '#6b7280'}} 
                                 tickFormatter={(unixTime) => {
                                     const date = new Date(unixTime);
