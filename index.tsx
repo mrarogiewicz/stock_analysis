@@ -1,16 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
-import {
-  ComposedChart,
-  Line,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
 
 // --- HOOKS ---
 const useStockAnalysisGenerator = () => {
@@ -39,10 +29,6 @@ const useStockAnalysisGenerator = () => {
   const [isFetchingOverview, setIsFetchingOverview] = useState(false);
   const [overviewError, setOverviewError] = useState(null);
 
-  const [stockChartData, setStockChartData] = useState(null);
-  const [isFetchingChart, setIsFetchingChart] = useState(false);
-  const [chartError, setChartError] = useState(null);
-
   const [resultOrder, setResultOrder] = useState<string[]>([]);
 
   const addToResultOrder = useCallback((type) => {
@@ -66,8 +52,6 @@ const useStockAnalysisGenerator = () => {
     setIncomeStatementError(null);
     setCompanyOverview(null);
     setOverviewError(null);
-    setStockChartData(null);
-    setChartError(null);
     setResultOrder([]);
 
 
@@ -230,32 +214,6 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker, addToResultOrder]);
 
-  const fetchStockChart = useCallback(async () => {
-    if (!generatedForTicker) return;
-
-    addToResultOrder('chart');
-    setIsFetchingChart(true);
-    setChartError(null);
-    setStockChartData(null);
-
-    try {
-        const res = await fetch(`/api/stock-chart?ticker=${generatedForTicker}`);
-        const data = await res.json();
-        
-        if (!res.ok) {
-            throw new Error(data.error || 'Failed to fetch chart data.');
-        }
-
-        setStockChartData(data);
-
-    } catch (e) {
-        console.error(e);
-        setChartError(e.message);
-    } finally {
-        setIsFetchingChart(false);
-    }
-  }, [generatedForTicker, addToResultOrder]);
-
   const handleSetTicker = (value) => {
     setTicker(value.toUpperCase());
     if (error) setError(null);
@@ -288,10 +246,6 @@ const useStockAnalysisGenerator = () => {
     isFetchingOverview,
     overviewError,
     fetchCompanyOverview,
-    stockChartData,
-    isFetchingChart,
-    chartError,
-    fetchStockChart,
     resultOrder,
   };
 };
@@ -531,8 +485,6 @@ const SuccessDisplay = ({
     isFetchingIncomeStatement,
     onFetchOverview,
     isFetchingOverview,
-    onFetchChart,
-    isFetchingChart,
     onGenerateWithGemini,
     isGeneratingWithGemini
 }) => {
@@ -588,25 +540,6 @@ const SuccessDisplay = ({
                                 className="w-4 h-4 object-contain" 
                             />
                             <span>Overview</span>
-                        </>
-                    )}
-                </button>
-
-                <button
-                    onClick={onFetchChart}
-                    disabled={isFetchingChart}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-                >
-                    {isFetchingChart ? (
-                        <Spinner className="w-4 h-4 text-gray-600" />
-                    ) : (
-                        <>
-                            <img 
-                                src="https://cdn-icons-png.flaticon.com/128/2152/2152656.png" 
-                                alt="" 
-                                className="w-4 h-4 object-contain" 
-                            />
-                            <span>Chart</span>
                         </>
                     )}
                 </button>
@@ -907,110 +840,6 @@ const CompanyOverviewDisplay = ({ data }) => {
   );
 };
 
-const StockChartDisplay = ({ data, ticker }) => {
-    const [period, setPeriod] = useState('1Y');
-
-    const periods = useMemo(() => [
-        { label: '1W', days: 7 },
-        { label: '1M', days: 30 },
-        { label: '3M', days: 90 },
-        { label: 'YTD', days: 'YTD' },
-        { label: '1Y', days: 365 },
-        { label: '5Y', days: 365 * 5 },
-        { label: 'All', days: 'ALL' }
-    ], []);
-
-    if (!data || !data['Time Series (Daily)']) return null;
-
-    const timeSeries = data['Time Series (Daily)'];
-    
-    const chartData = useMemo(() => {
-        const allData = Object.entries(timeSeries).map(([date, values]) => ({
-            date: date,
-            price: parseFloat(values['4. close']),
-            volume: parseFloat(values['5. volume'])
-        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        const now = new Date();
-        let cutoffDate;
-
-        const selectedPeriod = periods.find(p => p.label === period);
-        if (!selectedPeriod) return allData;
-
-        if (selectedPeriod.days === 'ALL') {
-            return allData;
-        } else if (selectedPeriod.days === 'YTD') {
-            cutoffDate = new Date(now.getFullYear(), 0, 1);
-        } else {
-            cutoffDate = new Date();
-            cutoffDate.setDate(now.getDate() - (selectedPeriod.days as number));
-        }
-        
-        return allData.filter(item => new Date(item.date) >= cutoffDate);
-    }, [timeSeries, period, periods]);
-
-    return (
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
-             <div className="mb-4 text-center">
-                 <h3 className="font-medium text-gray-700">Price & Volume History for <span className="text-[#38B6FF] font-bold">{ticker}</span></h3>
-             </div>
-            
-             <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                        <XAxis 
-                            dataKey="date" 
-                            tickFormatter={(date) => new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: period === '5Y' || period === 'All' ? '2-digit' : undefined })} 
-                            minTickGap={30}
-                            tick={{ fontSize: 12, fill: '#666' }}
-                        />
-                        <YAxis 
-                           yAxisId="left" 
-                           domain={['auto', 'auto']} 
-                           tick={{ fontSize: 12, fill: '#666' }}
-                           tickFormatter={(val) => val.toFixed(0)}
-                        />
-                        <YAxis 
-                           yAxisId="right" 
-                           orientation="right" 
-                           tick={false} 
-                           axisLine={false}
-                           domain={[0, (dataMax) => (Number(dataMax) || 0) * 5]} // Scale volume down visually
-                        />
-                        <Tooltip 
-                            contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px', border: '1px solid #ddd', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                            labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                            formatter={(value, name) => [
-                                name === 'price' ? `$${Number(value).toFixed(2)}` : Number(value).toLocaleString(),
-                                name === 'price' ? 'Price' : 'Volume'
-                            ]}
-                        />
-                        <Bar yAxisId="right" dataKey="volume" fill="#38B6FF" opacity={0.3} barSize={20} name="Volume" />
-                        <Line yAxisId="left" type="monotone" dataKey="price" stroke="#38B6FF" strokeWidth={2} dot={false} activeDot={{ r: 6 }} name="Price" />
-                    </ComposedChart>
-                </ResponsiveContainer>
-             </div>
-             
-             <div className="flex flex-wrap justify-center gap-2 mt-4">
-                 {periods.map((p) => (
-                     <button
-                        key={p.label}
-                        onClick={() => setPeriod(p.label)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
-                            period === p.label 
-                            ? 'bg-[#38B6FF] text-white shadow-md' 
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                     >
-                         {p.label}
-                     </button>
-                 ))}
-             </div>
-        </div>
-    );
-};
-
 
 const IncomeStatementDisplay = ({ data, ticker }) => {
     const [reportType, setReportType] = useState('annual'); // 'annual' or 'quarterly'
@@ -1204,10 +1033,6 @@ const App = () => {
     isFetchingOverview,
     overviewError,
     fetchCompanyOverview,
-    stockChartData,
-    isFetchingChart,
-    chartError,
-    fetchStockChart,
     resultOrder,
   } = useStockAnalysisGenerator();
 
@@ -1241,14 +1066,6 @@ const App = () => {
             <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
           </div>
         );
-      case 'chart':
-         if (!stockChartData && !chartError) return null;
-         return (
-            <div key="chart">
-                {chartError && <ErrorMessage message={chartError} />}
-                {stockChartData && <StockChartDisplay data={stockChartData} ticker={generatedForTicker} />}
-            </div>
-         );
       default:
         return null;
     }
@@ -1290,8 +1107,6 @@ const App = () => {
                   isFetchingIncomeStatement={isFetchingIncomeStatement}
                   onFetchOverview={fetchCompanyOverview}
                   isFetchingOverview={isFetchingOverview}
-                  onFetchChart={fetchStockChart}
-                  isFetchingChart={isFetchingChart}
                   onGenerateWithGemini={generateWithGemini}
                   isGeneratingWithGemini={isGeneratingWithGemini}
                 />

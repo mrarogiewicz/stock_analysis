@@ -11,12 +11,10 @@
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@google/genai": "^1.24.0",
-    "@vercel/blob": "^2.0.0",
     "marked": "13.0.0",
-    "@vercel/node": "^5.4.1",
-    "yahoo-finance2": "^3.10.0",
-    "recharts": "2.13.0"
+    "@google/genai": "^1.30.0",
+    "@vercel/node": "^5.5.9",
+    "@vercel/blob": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
