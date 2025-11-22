@@ -1127,7 +1127,14 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
              }
              timeSeries = data.intraday ? data.intraday['Time Series (15min)'] : null;
              type = '15min';
-        } else if (range === '1W' || range === '1M' || range === '3M') {
+        } else if (range === '1W') {
+             if (data.intraday60?.error) {
+                 setParsingError(data.intraday60.error);
+                 return [];
+             }
+             timeSeries = data.intraday60 ? data.intraday60['Time Series (60min)'] : null;
+             type = '60min';
+        } else if (range === '1M' || range === '3M') {
              if (data.daily?.error) {
                  setParsingError(data.daily.error);
                  return [];
@@ -1171,9 +1178,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         const lastDate = new Date(chartData[chartData.length - 1].date);
         let startDate = new Date(lastDate);
 
-        if (range === '1W') {
-            startDate.setDate(lastDate.getDate() - 7);
-        } else if (range === '1M') {
+        if (range === '1M') {
             startDate.setMonth(lastDate.getMonth() - 1);
         } else if (range === '3M') {
              startDate.setMonth(lastDate.getMonth() - 3);
@@ -1184,7 +1189,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         } else if (range === '5Y') {
             startDate.setFullYear(lastDate.getFullYear() - 5);
         } else {
-            // For 1D (Intraday), we usually just show what's returned (which is usually 1 day or recent days)
+            // For 1D and 1W (Intraday), we usually just show what's returned by compact
             return chartData;
         }
 
@@ -1199,8 +1204,14 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         const start = new Date(filteredData[0].date);
         const end = new Date(filteredData[filteredData.length - 1].date);
         const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        
+        // Include time if it's intraday
+        if (range === '1D' || range === '1W') {
+             return `${start.toLocaleString('en-US', { ...opts, hour: '2-digit', minute: '2-digit'})} - ${end.toLocaleString('en-US', { ...opts, hour: '2-digit', minute: '2-digit'})}`;
+        }
+
         return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}`;
-    }, [filteredData]);
+    }, [filteredData, range]);
 
     if (!data) return null;
 
@@ -1249,6 +1260,10 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                                     if (range === '1D') {
                                          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                     }
+                                    // If 1W (Intraday), show Date + Time
+                                    if (range === '1W') {
+                                         return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                    }
                                     // Else show date
                                     // Fix: Type assertion to compatible interface
                                     return date.toLocaleDateString(undefined, {
@@ -1265,7 +1280,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                                 orientation="left" 
                                 width={0}
                                 tick={false}
-                                domain={[0, 'dataMax * 4']}
+                                domain={[0, 'dataMax * 8']} // Make volume bars 50% shorter relative to previous height
                             />
                             <YAxis 
                                 yAxisId="right" 

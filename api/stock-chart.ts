@@ -78,6 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Base URLs
     const baseIntraday = `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${ticker}&interval=15min`;
+    const baseIntraday60 = `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${ticker}&interval=60min&outputsize=compact`;
     // Removed &outputsize=full to match user request for compact data
     const baseDaily = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}`; 
     const baseWeekly = `https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=${ticker}`;
@@ -86,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         // Fetch sequentially to respect the key rotation logic and avoid hitting concurrency limits with limited keys.
         const intraday = await fetchWithKeyRotation(baseIntraday, keys);
+        const intraday60 = await fetchWithKeyRotation(baseIntraday60, keys);
         const daily = await fetchWithKeyRotation(baseDaily, keys);
         const weekly = await fetchWithKeyRotation(baseWeekly, keys);
         const monthly = await fetchWithKeyRotation(baseMonthly, keys);
@@ -93,6 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Construct composite response
         const responseData = {
             intraday,
+            intraday60,
             daily,
             weekly,
             monthly,
