@@ -1,3 +1,4 @@
+
 // /api/income-statement.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
@@ -8,32 +9,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "Ticker is required and must be a string." });
     }
 
-    // Use environment variable for the API key
-    const apiKey = process.env.ALPHA_KEY;
+    const keys = [
+        process.env.ALPHA_KEY,
+        process.env.ALPHA_KEY_2,
+        process.env.ALPHA_KEY_3,
+        process.env.ALPHA_KEY_4,
+        process.env.ALPHA_KEY_5
+    ].filter(Boolean);
 
-    if (!apiKey) {
-        return res.status(500).json({ error: "The 'ALPHA_KEY' environment variable is not set on the server." });
+    if (keys.length === 0) {
+        return res.status(500).json({ error: "The 'ALPHA_KEY' environment variables are not set on the server." });
     }
 
-    const alphaVantageUrl = `https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol=${ticker}&apikey=${apiKey}`;
+    let lastData = null;
 
-    try {
-        const alphaVantageResponse = await fetch(alphaVantageUrl);
-        if (!alphaVantageResponse.ok) {
-            return res.status(alphaVantageResponse.status).json({ error: "Failed to fetch data from Alpha Vantage." });
+    for (const apiKey of keys) {
+        const alphaVantageUrl = `https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol=${ticker}&apikey=${apiKey}`;
+
+        try {
+            const alphaVantageResponse = await fetch(alphaVantageUrl);
+            if (!alphaVantageResponse.ok) {
+                console.error(`Failed fetch with key ending ...${apiKey?.slice(-4)} status: ${alphaVantageResponse.status}`);
+                continue;
+            }
+            
+            const data = await alphaVantageResponse.json();
+            lastData = data;
+
+            // Check for rate limit messages
+            const note = data["Note"] || data["Information"];
+            if (note && (
+                note.includes("rate limit") || 
+                note.includes("call frequency") || 
+                note.includes("requests per day") ||
+                note.includes("higher API call frequency")
+            )) {
+                console.log(`Rate limit hit for key ending ...${apiKey?.slice(-4)}. trying next key.`);
+                continue;
+            }
+
+            // Alpha Vantage returns an error message for invalid tickers
+            if (data["Error Message"]) {
+                 return res.status(400).json({ error: data["Error Message"] });
+            }
+
+            return res.status(200).json(data);
+
+        } catch (error) {
+            console.error(`Error with key ending ...${apiKey?.slice(-4)}:`, error);
+            continue;
         }
-        
-        const data = await alphaVantageResponse.json();
-
-        // Alpha Vantage returns an error message or note in the JSON payload for invalid requests.
-        if (data["Error Message"] || data["Note"]) {
-             return res.status(400).json({ error: data["Error Message"] || data["Note"] || 'Invalid request to Alpha Vantage API.' });
-        }
-
-        return res.status(200).json(data);
-
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unknown server error occurred.";
-        return res.status(500).json({ error: errorMessage });
     }
+
+    // If we exhausted all keys
+    if (lastData && (lastData["Note"] || lastData["Information"])) {
+        const msg = lastData["Note"] || lastData["Information"];
+        return res.status(429).json({ error: "API rate limit exceeded on all keys.", details: msg });
+    }
+
+    return res.status(500).json({ error: "Failed to fetch income statement data after trying all available API keys." });
 }
