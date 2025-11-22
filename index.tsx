@@ -492,7 +492,7 @@ const SuccessDisplay = ({
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
       <div className="text-center mb-4">
         <p className="font-medium text-gray-700">
-          Analysis for ticker -{' '}
+          Name of the company -{' '}
           <span style={{ color: '#38B6FF' }} className="font-bold">
             {ticker}
           </span>
@@ -782,7 +782,7 @@ const CompanyOverviewDisplay = ({ data }) => {
              <dl className="grid grid-cols-2 gap-y-2 text-sm">
                 <dt className="text-gray-500">Shares Outstanding</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesOutstanding)}</dd>
                 <dt className="text-gray-500">Float Shares</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesFloat)}</dd>
-                <dt className="text-gray-500">% Insiders</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.PercentInsiders)}</dd>
+                <dt className="text-gray-500">% Insiders</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInsiders ? parseFloat(data.PercentInsiders).toFixed(2) + '%' : 'N/A'}</dd>
                 <dt className="text-gray-500">% Institutions</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInstitutions ? parseFloat(data.PercentInstitutions).toFixed(2) + '%' : 'N/A'}</dd>
              </dl>
           </div>
