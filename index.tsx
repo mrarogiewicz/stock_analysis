@@ -353,7 +353,7 @@ const Header = ({ isTickerPresent, generatedForTicker }) => {
       <div className="inline-flex items-center justify-center gap-3 mb-4">
         <ChartIcon className={`w-8 h-8 transition-colors duration-300 ${isTickerPresent || generatedForTicker ? 'text-[#38B6FF]' : 'text-black'}`} />
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 whitespace-nowrap">
-          Stock Analysis Generator
+          Stock Analysis
           {generatedForTicker && (
             <span className="ml-3 text-2xl font-semibold text-[#38B6FF]">
               [{generatedForTicker}]
@@ -1088,11 +1088,21 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     );
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, range }: any) => {
   if (active && payload && payload.length) {
+    // Format the timestamp back to a readable string for the tooltip
+    const date = new Date(label); // label is the timestamp number
+    let dateStr = '';
+    
+    if (range === '1D' || range === '1W') {
+        dateStr = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } else {
+        dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
     return (
       <div className="bg-white/95 border border-gray-200 shadow-lg p-3 rounded text-xs">
-        <p className="font-bold text-gray-700 mb-1">{label}</p>
+        <p className="font-bold text-gray-700 mb-1">{dateStr}</p>
         {payload.map((entry, index) => (
             <p key={index} style={{ color: entry.color }}>
                 {entry.name}: {
@@ -1128,12 +1138,12 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
              timeSeries = data.intraday ? data.intraday['Time Series (15min)'] : null;
              type = '15min';
         } else if (range === '1W') {
-             if (data.intraday60?.error) {
-                 setParsingError(data.intraday60.error);
+             if (data.intraday30?.error) {
+                 setParsingError(data.intraday30.error);
                  return [];
              }
-             timeSeries = data.intraday60 ? data.intraday60['Time Series (60min)'] : null;
-             type = '60min';
+             timeSeries = data.intraday30 ? data.intraday30['Time Series (30min)'] : null;
+             type = '30min';
         } else if (range === '1M' || range === '3M') {
              if (data.daily?.error) {
                  setParsingError(data.daily.error);
@@ -1160,12 +1170,19 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         // If the specific dataset is missing or has error, return empty
         if (!timeSeries) return [];
 
-        return Object.keys(timeSeries).map(date => ({
-            date,
-            price: parseFloat(timeSeries[date]['4. close']),
-            volume: parseInt(timeSeries[date]['5. volume']),
-            type
-        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        return Object.keys(timeSeries).map(dateStr => {
+             // For intraday, parsing 'YYYY-MM-DD HH:MM:SS' works directly in Date()
+             // For daily/weekly/monthly, 'YYYY-MM-DD' works too.
+             // We create a timestamp for numeric axis sorting
+             const dateObj = new Date(dateStr);
+             return {
+                date: dateStr,
+                timestamp: dateObj.getTime(),
+                price: parseFloat(timeSeries[dateStr]['4. close']),
+                volume: parseInt(timeSeries[dateStr]['5. volume']),
+                type
+            };
+        }).sort((a, b) => a.timestamp - b.timestamp);
     }, [data, range]);
 
     // Filter data based on range
@@ -1175,7 +1192,8 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         // For 'All', return everything
         if (range === 'All') return chartData;
         
-        const lastDate = new Date(chartData[chartData.length - 1].date);
+        const lastItem = chartData[chartData.length - 1];
+        const lastDate = new Date(lastItem.timestamp);
         let startDate = new Date(lastDate);
 
         if (range === '1M') {
@@ -1194,19 +1212,18 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         }
 
         // Filter by date
-        // Convert to timestamp for accurate comparison
         const startTime = startDate.getTime();
-        return chartData.filter(item => new Date(item.date).getTime() >= startTime);
+        return chartData.filter(item => item.timestamp >= startTime);
     }, [chartData, range]);
 
     const dateRangeText = useMemo(() => {
         if (filteredData.length === 0) return '';
-        const start = new Date(filteredData[0].date);
-        const end = new Date(filteredData[filteredData.length - 1].date);
+        const start = new Date(filteredData[0].timestamp);
+        const end = new Date(filteredData[filteredData.length - 1].timestamp);
         const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
         
-        // Include time if it's intraday
-        if (range === '1D' || range === '1W') {
+        // Include time if it's intraday 1D. For 1W we removed it per request.
+        if (range === '1D') {
              return `${start.toLocaleString('en-US', { ...opts, hour: '2-digit', minute: '2-digit'})} - ${end.toLocaleString('en-US', { ...opts, hour: '2-digit', minute: '2-digit'})}`;
         }
 
@@ -1216,14 +1233,12 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
     if (!data) return null;
 
     // Check for missing data
-    // If filteredData is empty but we have the raw data object, it implies data is missing for that range or filter removed everything
     if (filteredData.length === 0 && !isFetching) {
          return (
             <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg p-6 text-center">
                 <p className="text-gray-600 font-semibold">No data available for range {range}.</p>
                 {parsingError && <p className="text-red-500 text-xs mt-2">{parsingError}</p>}
                 <div className="mt-2 text-xs text-gray-400">
-                    {/* Debug info about available keys */}
                      Debug: Keys present in response: {Object.keys(data).filter(k => data[k] && !data[k].error).join(', ')}
                 </div>
             </div>
@@ -1252,20 +1267,21 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                             <XAxis 
-                                dataKey="date" 
+                                dataKey="timestamp" 
+                                type="number"
+                                domain={['dataMin', 'dataMax']}
                                 tick={{fontSize: 10, fill: '#6b7280'}} 
-                                tickFormatter={(str) => {
-                                    const date = new Date(str);
+                                tickFormatter={(unixTime) => {
+                                    const date = new Date(unixTime);
                                     // If 1D (Intraday), show time
                                     if (range === '1D') {
                                          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                     }
-                                    // If 1W (Intraday), show Date + Time
+                                    // If 1W, show Date only (e.g. Nov 21) per request
                                     if (range === '1W') {
-                                         return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                         return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
                                     }
                                     // Else show date
-                                    // Fix: Type assertion to compatible interface
                                     return date.toLocaleDateString(undefined, {
                                         month:'short', 
                                         day:'numeric', 
@@ -1280,7 +1296,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                                 orientation="left" 
                                 width={0}
                                 tick={false}
-                                domain={[0, 'dataMax * 8']} // Make volume bars 50% shorter relative to previous height
+                                domain={[0, 'dataMax * 8']} // Make volume bars significantly shorter
                             />
                             <YAxis 
                                 yAxisId="right" 
@@ -1289,7 +1305,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
                                 domain={['auto', 'auto']}
                                 tickFormatter={(val) => `$${val}`}
                             />
-                            <Tooltip content={CustomTooltip} />
+                            <Tooltip content={<CustomTooltip range={range} />} />
                             <Bar yAxisId="left" dataKey="volume" name="Volume" fill="#e5e7eb" barSize={20} isAnimationActive={false} />
                             <Line 
                                 yAxisId="right" 

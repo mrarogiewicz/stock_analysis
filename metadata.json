@@ -1,5 +1,5 @@
 {
-  "name": "Stock Analysis Generator",
+  "name": "Stock Analysis",
   "description": "An application that generates a stock analysis template in Markdown format based on a user-provided stock ticker.",
   "requestFramePermissions": []
 }
