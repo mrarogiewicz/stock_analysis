@@ -1138,51 +1138,65 @@ const StockChartDisplay = ({ data, ticker }) => {
             <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">Price & Volume Chart - {ticker}</h3>
             
             <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                        <defs>
-                            <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#38B6FF" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#38B6FF" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis 
-                            dataKey="date" 
-                            tick={{fontSize: 10, fill: '#6b7280'}} 
-                            tickFormatter={(str) => {
-                                const date = new Date(str);
-                                return date.toLocaleDateString(undefined, {month:'short', day:'numeric'});
-                            }}
-                            minTickGap={30}
-                        />
-                        <YAxis 
-                            yAxisId="right" 
-                            orientation="right" 
-                            tick={{fontSize: 10, fill: '#6b7280'}} 
-                            domain={['auto', 'auto']}
-                            tickFormatter={(val) => `$${val}`}
-                        />
-                        <YAxis 
-                            yAxisId="left" 
-                            orientation="left" 
-                            tick={{fontSize: 10, fill: '#9ca3af'}} 
-                            tickFormatter={(val) => `${(val/1000000).toFixed(0)}M`}
-                        />
-                        <Tooltip content={CustomTooltip} />
-                        <Bar yAxisId="left" dataKey="volume" name="Volume" fill="#e5e7eb" barSize={20} />
-                        <Line 
-                            yAxisId="right" 
-                            type="monotone" 
-                            dataKey="price" 
-                            name="Price" 
-                            stroke="#38B6FF" 
-                            strokeWidth={2} 
-                            dot={false} 
-                            activeDot={{ r: 4 }} 
-                        />
-                    </ComposedChart>
-                </ResponsiveContainer>
+                {filteredData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                            <defs>
+                                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#38B6FF" stopOpacity={0.1}/>
+                                    <stop offset="95%" stopColor="#38B6FF" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis 
+                                dataKey="date" 
+                                tick={{fontSize: 10, fill: '#6b7280'}} 
+                                tickFormatter={(str) => {
+                                    const date = new Date(str);
+                                    return date.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+                                }}
+                                minTickGap={30}
+                            />
+                            <YAxis 
+                                yAxisId="right" 
+                                orientation="right" 
+                                tick={{fontSize: 10, fill: '#6b7280'}} 
+                                domain={['auto', 'auto']}
+                                tickFormatter={(val) => `$${val}`}
+                            />
+                            <YAxis 
+                                yAxisId="left" 
+                                orientation="left" 
+                                tick={{fontSize: 10, fill: '#9ca3af'}} 
+                                tickFormatter={(val) => `${(val/1000000).toFixed(0)}M`}
+                            />
+                            <Tooltip content={CustomTooltip} />
+                            <Bar 
+                                yAxisId="left" 
+                                dataKey="volume" 
+                                name="Volume" 
+                                fill="#e5e7eb" 
+                                barSize={20}
+                                isAnimationActive={false} 
+                            />
+                            <Line 
+                                yAxisId="right" 
+                                type="monotone" 
+                                dataKey="price" 
+                                name="Price" 
+                                stroke="#38B6FF" 
+                                strokeWidth={2} 
+                                dot={false} 
+                                activeDot={{ r: 4 }}
+                                isAnimationActive={false}
+                            />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                        No data available for this time range.
+                    </div>
+                )}
             </div>
 
             <div className="flex justify-center gap-2 mt-4 flex-wrap">
