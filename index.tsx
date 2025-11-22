@@ -670,6 +670,8 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
 };
 
 const CompanyOverviewDisplay = ({ data }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (!data) return null;
   
   // Helper to format large numbers
@@ -723,7 +725,21 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <p>Latest Qtr: {data.LatestQuarter}</p>
              </div>
           </div>
-          <p className="mt-4 text-gray-700 leading-relaxed text-sm">{data.Description}</p>
+          
+          <div 
+            className="mt-4 cursor-pointer group"
+            onClick={() => setIsExpanded(!isExpanded)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsExpanded(!isExpanded) }}
+          >
+             <p className={`text-gray-700 leading-relaxed text-sm transition-all duration-200 ${isExpanded ? '' : 'line-clamp-3'}`}>
+                {data.Description}
+             </p>
+             {!isExpanded && (
+                 <span className="text-xs text-[#38B6FF] font-medium mt-1 inline-block group-hover:underline">Read more</span>
+             )}
+          </div>
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
