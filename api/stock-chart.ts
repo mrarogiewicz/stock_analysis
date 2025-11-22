@@ -78,7 +78,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Base URLs
     const baseIntraday = `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${ticker}&interval=15min`;
-    const baseDaily = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=full`;
+    // Removed &outputsize=full to match user request for compact data
+    const baseDaily = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}`; 
     const baseWeekly = `https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=${ticker}`;
     const baseMonthly = `https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY&symbol=${ticker}`;
 
