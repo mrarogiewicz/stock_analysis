@@ -800,6 +800,24 @@ const SuccessDisplay = ({
                         </>
                     )}
                 </button>
+
+                <button
+                    type="button"
+                    onClick={async () => {
+                        try {
+                            const res = await fetch('/api/random-string');
+                            if (!res.ok) throw new Error('Request failed');
+                            const data = await res.json();
+                            window.alert(data.random_string);
+                        } catch (e) {
+                            console.error(e);
+                            window.alert('Failed to call Python backend');
+                        }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner transition-all duration-200"
+                >
+                    <span>Test</span>
+                </button>
                
                 {displayType === 'detail' && (
                     <button
