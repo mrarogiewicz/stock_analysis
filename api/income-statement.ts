@@ -77,14 +77,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const incomeUrl = `https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol=${ticker}`;
     const incomeData = await fetchWithRetry(incomeUrl, keys);
 
-    // Fetch Earnings (contains estimates)
-    // using 'EARNINGS' as it contains reported and estimated EPS. 
-    // If 'EARNINGS_ESTIMATES' was intended as a specific endpoint, sticking to 'EARNINGS' is safer for standard keys.
-    const earningsUrl = `https://www.alphavantage.co/query?function=EARNINGS&symbol=${ticker}`;
-    const earningsData = await fetchWithRetry(earningsUrl, keys);
+    // Fetch Earnings Estimates
+    // Using EARNINGS_ESTIMATES to get future revenue/eps projections
+    const estimatesUrl = `https://www.alphavantage.co/query?function=EARNINGS_ESTIMATES&symbol=${ticker}`;
+    const estimatesData = await fetchWithRetry(estimatesUrl, keys);
 
     return res.status(200).json({
         income: incomeData.error ? null : incomeData,
-        earnings: earningsData.error ? null : earningsData
+        earnings: estimatesData.error ? null : estimatesData // Using 'earnings' key to keep frontend compatible or we can rename to 'estimates'
     });
 }

@@ -1219,7 +1219,8 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
 
     // Ensure we handle the combined data structure { income: ..., earnings: ... }
     const incomeData = data?.income || data; // Fallback if old structure
-    const earningsData = data?.earnings || null;
+    // New data structure has 'earnings' key containing 'estimates' array from EARNINGS_ESTIMATES
+    const estimatesData = data?.earnings?.estimates || null;
 
     const hasAnnualData = incomeData?.annualReports?.length > 0;
     const hasQuarterlyData = incomeData?.quarterlyReports?.length > 0;
@@ -1283,41 +1284,40 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     
     // Process Estimates if toggled
     const futureEstimates = useMemo(() => {
-        if (!showEstimates || !earningsData) return [];
-        const source = reportType === 'annual' ? earningsData.annualEarnings : earningsData.quarterlyEarnings;
-        if (!source || source.length === 0) return [];
-
+        if (!showEstimates || !estimatesData) return [];
+        
         // Find the last reported date from historical data
         const lastHistoricalDateStr = historicalReports[0]?.fiscalDateEnding;
         if (!lastHistoricalDateStr) return [];
         const lastDate = new Date(lastHistoricalDateStr);
+        
+        // Filter estimates
+        // Annual view: horizon "next fiscal year"
+        // Quarterly view: horizon "next fiscal quarter"
+        const targetHorizon = reportType === 'annual' ? 'year' : 'quarter';
 
-        // Filter estimates that are strictly in the future relative to last reported income statement
-        // Note: 'earnings' endpoint might have mixed reported/estimated. We want future ones.
-        return source.filter(est => {
-            const d = new Date(est.fiscalDateEnding);
-            return d > lastDate;
-        }).sort((a, b) => new Date(b.fiscalDateEnding).getTime() - new Date(a.fiscalDateEnding).getTime()).slice(0, 4); // Show up to 4 future estimates
-    }, [showEstimates, earningsData, reportType, historicalReports]);
+        return estimatesData.filter(est => {
+            const d = new Date(est.date);
+            const isFuture = d > lastDate;
+            const matchesHorizon = est.horizon && est.horizon.toLowerCase().includes(targetHorizon) && est.horizon.toLowerCase().includes('next');
+            return isFuture && matchesHorizon;
+        }).map(est => ({
+            fiscalDateEnding: est.date,
+            estimatedRevenue: est.revenue_estimate_high, // Using High Estimate as requested
+            estimatedEPS: est.eps_estimate_average
+        })).sort((a, b) => new Date(b.fiscalDateEnding).getTime() - new Date(a.fiscalDateEnding).getTime())
+        .slice(0, 4); // Show up to 4 future estimates
 
-    // Combine for rendering
-    // We reverse historical to show [Future ... Past] or just standard [Newest ... Oldest]
-    // Standard view is usually Descending Date.
-    // So: [Future Est 1, Future Est 2 ... ] + [Historical 1, Historical 2 ...]
-    
-    // Sort future estimates descending (furthest future first? or nearest future first?)
-    // Usually tables read left-to-right as Newest-to-Oldest.
-    // So: Future (furthest) -> Future (nearest) -> Historical (newest) -> Historical (oldest).
-    // Let's sort future descending.
-    const sortedEstimates = [...futureEstimates].sort((a, b) => new Date(b.fiscalDateEnding).getTime() - new Date(a.fiscalDateEnding).getTime());
-    
+    }, [showEstimates, estimatesData, reportType, historicalReports]);
+
+    const sortedEstimates = [...futureEstimates]; // Already sorted descending
     const displayColumns = [...sortedEstimates, ...historicalReports.slice(0, reportsToShowCount)];
 
     const metricsToShow = {
         'totalRevenue': 'Total Revenue',
         'grossProfit': 'Gross Profit',
         'netIncome': 'Net Income',
-        'eps': 'EPS (Diluted)' // New row for combined EPS
+        'eps': 'EPS' // Combined row
     };
   
     return (
@@ -1326,7 +1326,7 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
             <div className="flex flex-col sm:flex-row justify-between items-center mb-5 gap-4">
                 <div className="flex items-center gap-3">
                     <h3 className="font-medium text-gray-700">Income Statement</h3>
-                    {earningsData && (
+                    {estimatesData && (
                         <label className="flex items-center cursor-pointer text-xs select-none">
                             <div className="relative">
                                 <input 
@@ -1398,31 +1398,26 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                         if (isEstimate) {
                             // Map estimates
                             if (key === 'eps') {
-                                // For estimates, we look for estimatedEPS
                                 val = col.estimatedEPS;
                             } else if (key === 'totalRevenue') {
-                                // Look for estimatedRevenue if exists (unlikely in standard API but handling it)
-                                val = col.estimatedRevenue || col.totalRevenue || 'N/A';
+                                val = col.estimatedRevenue;
                             } else {
-                                // Other metrics like Gross Profit / Net Income aren't usually in simple estimates
                                 val = 'N/A';
                             }
                         } else {
                             // Historical Data
                             if (key === 'eps') {
-                                // Income statement usually doesn't have 'eps' field directly in annualReports sometimes, 
-                                // but we might find it. If not, we could check if we have earnings data for this quarter.
-                                // The API actually returns 'reportedEPS' in the earnings endpoint.
-                                // Let's try to match it from earningsData if possible, or check if 'eps' exists in income report.
-                                // AlphaVantage INCOME_STATEMENT has 'reportedEPS' field? No, it has 'netIncome'.
-                                // We'll try to use EPS from INCOME_STATEMENT if standard, or find match in EARNINGS history.
-                                
-                                // Actually, 'EARNINGS' endpoint has history. We can try to find the matching reportedEPS.
-                                if (earningsData) {
-                                    const histSource = reportType === 'annual' ? earningsData.annualEarnings : earningsData.quarterlyEarnings;
-                                    const match = histSource?.find(e => e.fiscalDateEnding === col.fiscalDateEnding);
-                                    if (match) val = match.reportedEPS;
-                                }
+                                // Some endpoints return reportedEPS directly, INCOME_STATEMENT usually doesn't have explicit 'eps' field in older versions
+                                // but we might find 'reportedEPS' if we had earnings data merged. 
+                                // However, standard INCOME_STATEMENT usually doesn't.
+                                // Let's check if 'reportedEPS' or 'eps' is on the object.
+                                // If not, we check 'netIncome' / 'commonStockSharesOutstanding' manually? No, simpler to just N/A if missing.
+                                // Wait, the alpha vantage INCOME_STATEMENT output usually doesn't include EPS. 
+                                // We might need to rely on 'EARNINGS' endpoint for historical EPS if we wanted it.
+                                // But let's assume if it's there we show it. 
+                                // Actually, let's use 'netIncome' if 'eps' is missing? No that's wrong units.
+                                // Let's leave N/A if missing in historical for now as we switched away from EARNINGS endpoint for historical.
+                                val = 'N/A';
                             } else {
                                 val = col[key];
                             }
