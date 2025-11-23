@@ -45,9 +45,14 @@ const useStockAnalysisGenerator = () => {
   const [chartError, setChartError] = useState(null);
   const [chartRange, setChartRange] = useState('3M'); // Default range
 
+  // Transcript & Summary State
   const [transcriptData, setTranscriptData] = useState(null);
   const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
   const [transcriptError, setTranscriptError] = useState(null);
+  
+  const [transcriptSummary, setTranscriptSummary] = useState(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState(null);
 
   const [resultOrder, setResultOrder] = useState<string[]>([]);
 
@@ -76,6 +81,8 @@ const useStockAnalysisGenerator = () => {
     setChartError(null);
     setTranscriptData(null);
     setTranscriptError(null);
+    setTranscriptSummary(null);
+    setSummaryError(null);
     setResultOrder([]);
 
 
@@ -269,30 +276,33 @@ const useStockAnalysisGenerator = () => {
     }
   }, [generatedForTicker, addToResultOrder]);
 
-  const fetchEarningsTranscript = useCallback(async () => {
+  // Combined function to fetch transcript AND immediately summarize it
+  const fetchAndSummarizeTranscript = useCallback(async () => {
       if (!generatedForTicker) return;
 
       addToResultOrder('transcript');
       setIsFetchingTranscript(true);
+      setIsGeneratingSummary(true);
+      
       setTranscriptError(null);
+      setSummaryError(null);
       setTranscriptData(null);
+      setTranscriptSummary(null);
 
       try {
-          // We need Fiscal Year End and Latest Quarter to calculate the correct Year/Quarter param.
-          // Check if we have overview data, if not fetch it.
+          // 1. Get Company Details for Dates
           let overview = companyOverview;
           if (!overview) {
               const res = await fetch(`/api/company-overview?ticker=${generatedForTicker}`);
               if (!res.ok) throw new Error("Could not fetch company details needed for transcript.");
               overview = await res.json();
-              setCompanyOverview(overview); // Update state as a side effect
+              setCompanyOverview(overview);
           }
 
           if (!overview || !overview.LatestQuarter) {
               throw new Error("Could not determine latest quarter for transcript.");
           }
 
-          // Calculate Fiscal Year/Quarter
           let transcriptYear = '';
           let transcriptQuarter = '';
           const d = new Date(overview.LatestQuarter);
@@ -307,6 +317,7 @@ const useStockAnalysisGenerator = () => {
               throw new Error("Invalid dates for transcript.");
           }
 
+          // 2. Fetch Raw Transcript
           const res = await fetch('/api/summarize-earnings', {
              method: 'POST',
              headers: { 'Content-Type': 'application/json' },
@@ -319,19 +330,52 @@ const useStockAnalysisGenerator = () => {
 
          const data = await res.json();
          if (!res.ok) {
-             // Pass debug URL if present in error
              if (data.debugUrl) {
                  throw new Error(`${data.error || 'Failed to fetch transcript'} (Debug: ${data.debugUrl})`);
              }
              throw new Error(data.error || 'Failed to fetch transcript.');
          }
-
+         
+         // Set transcript data so it displays
          setTranscriptData(data);
+         setIsFetchingTranscript(false); // Transcript fetch done
+
+         // 3. Generate Summary immediately
+         if (!data.transcript || data.transcript.length === 0) {
+             throw new Error("Transcript empty, cannot summarize.");
+         }
+
+         const transcriptText = data.transcript.map(item => `${item.speaker}: ${item.content}`).join('\n\n');
+         
+         const summaryRes = await fetch('/api/generate-transcript-summary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                transcriptText,
+                ticker: generatedForTicker,
+                quarter: data.quarter
+            })
+         });
+         
+         const summaryData = await summaryRes.json();
+         if (!summaryRes.ok) {
+             throw new Error(`${summaryData.error || "Failed to generate summary"}${summaryData.details ? `: ${summaryData.details}` : ''}`);
+         }
+         
+         setTranscriptSummary(summaryData.text);
 
       } catch (e) {
           console.error(e);
-          setTranscriptError(e.message);
+          // If we failed at transcript stage, setIsFetchingTranscript needs to be false
+          setIsFetchingTranscript(false);
+          
+          if (!transcriptData) {
+              setTranscriptError(e.message);
+          } else {
+              setSummaryError(e.message);
+          }
       } finally {
+          setIsGeneratingSummary(false);
           setIsFetchingTranscript(false);
       }
   }, [generatedForTicker, addToResultOrder, companyOverview]);
@@ -379,10 +423,16 @@ const useStockAnalysisGenerator = () => {
     fetchStockChart,
     chartRange,
     setRange,
+    
+    // Transcript props
     transcriptData,
     isFetchingTranscript,
     transcriptError,
-    fetchEarningsTranscript,
+    transcriptSummary,
+    isGeneratingSummary,
+    summaryError,
+    fetchAndSummarizeTranscript,
+    
     resultOrder,
   };
 };
@@ -633,9 +683,7 @@ const SuccessDisplay = ({
     onGenerateWithGemini,
     isGeneratingWithGemini,
     onFetchStockChart,
-    isFetchingChart,
-    onFetchTranscript,
-    isFetchingTranscript
+    isFetchingChart
 }) => {
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
@@ -690,23 +738,6 @@ const SuccessDisplay = ({
                     )}
                 </button>
                 
-                <button
-                    onClick={onFetchTranscript}
-                    disabled={isFetchingTranscript}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-                >
-                    {isFetchingTranscript ? (
-                        <Spinner className="w-4 h-4 text-gray-600" />
-                    ) : (
-                        <>
-                            <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span>Earnings Transcript</span>
-                        </>
-                    )}
-                </button>
-
                 <button
                     onClick={() => onFetchStockChart()}
                     disabled={isFetchingChart}
@@ -852,7 +883,7 @@ const GeminiResponseDisplay = ({ content, ticker, title }: { content: any; ticke
     );
 };
 
-const CompanyOverviewDisplay = ({ data }) => {
+const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!data) return null;
@@ -987,7 +1018,21 @@ const CompanyOverviewDisplay = ({ data }) => {
              </div>
              <div className="text-right text-xs text-gray-500 hidden sm:flex flex-col items-end gap-1">
                 <p>Fiscal Year End: {data.FiscalYearEnd}</p>
-                <p>Latest Qtr: {data.LatestQuarter}</p>
+                <div className="flex items-center gap-2">
+                    <p>Latest Qtr: {data.LatestQuarter}</p>
+                    <button
+                        onClick={onSummarize}
+                        disabled={isSummarizing}
+                        className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 hover:bg-blue-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+                        title="Fetch and summarize earnings call"
+                    >
+                         {isSummarizing ? (
+                             <Spinner className="w-3 h-3" />
+                         ) : (
+                             <span>📄 Summarize Earnings</span>
+                         )}
+                    </button>
+                </div>
              </div>
           </div>
           
@@ -1113,47 +1158,9 @@ const CompanyOverviewDisplay = ({ data }) => {
   );
 };
 
-const EarningsTranscriptDisplay = ({ data, ticker, quarter }) => {
-    const [summary, setSummary] = useState(null);
-    const [isSummarizing, setIsSummarizing] = useState(false);
-    const [summaryError, setSummaryError] = useState(null);
-
+const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summaryError }) => {
     if (!data || !data.transcript) return null;
     
-    const handleSummarize = async () => {
-        setIsSummarizing(true);
-        setSummaryError(null);
-        setSummary(null);
-
-        try {
-            // Flatten transcript
-            const transcriptText = data.transcript.map(item => `${item.speaker}: ${item.content}`).join('\n\n');
-            
-            const res = await fetch('/api/generate-transcript-summary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    transcriptText,
-                    ticker,
-                    quarter: data.quarter || quarter
-                })
-            });
-
-            const resData = await res.json();
-            if (!res.ok) {
-                // Include details if available to help debug
-                throw new Error(`${resData.error || "Failed to generate summary"}${resData.details ? `: ${resData.details}` : ''}`);
-            }
-            
-            setSummary(resData.text);
-
-        } catch (e) {
-            setSummaryError(e.message);
-        } finally {
-            setIsSummarizing(false);
-        }
-    };
-
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
@@ -1162,27 +1169,12 @@ const EarningsTranscriptDisplay = ({ data, ticker, quarter }) => {
                  <h3 className="font-bold text-gray-800 text-lg">Earnings Call Transcript</h3>
                  <p className="text-sm text-gray-500">{data.quarter ? `Quarter: ${data.quarter}` : ''}</p>
               </div>
-              <button
-                onClick={handleSummarize}
-                disabled={isSummarizing}
-                className="flex items-center gap-2 bg-[#38B6FF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#32a3e6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                  {isSummarizing ? (
-                      <>
-                          <Spinner className="w-4 h-4" />
-                          <span>Summarizing...</span>
-                      </>
-                  ) : (
-                      <>
-                        <img 
-                             src="https://registry.npmmirror.com/@lobehub/icons-static-png/1.74.0/files/dark/gemini-color.png" 
-                             alt="" 
-                             className="w-4 h-4 object-contain brightness-0 invert" 
-                         />
-                        <span>Summarize with Gemini Pro</span>
-                      </>
-                  )}
-              </button>
+              {isSummarizing && (
+                  <div className="flex items-center gap-2 text-sm text-[#38B6FF] font-medium">
+                      <Spinner className="w-4 h-4" />
+                      <span>Generating Summary...</span>
+                  </div>
+              )}
            </div>
            
            {summaryError && <ErrorMessage message={summaryError} />}
@@ -1708,10 +1700,15 @@ const App = () => {
     fetchStockChart,
     chartRange,
     setRange,
+    
+    // Transcript Props
     transcriptData,
-    isFetchingTranscript,
     transcriptError,
-    fetchEarningsTranscript,
+    transcriptSummary,
+    isGeneratingSummary,
+    summaryError,
+    fetchAndSummarizeTranscript,
+    
     resultOrder,
   } = useStockAnalysisGenerator();
 
@@ -1726,7 +1723,13 @@ const App = () => {
         return (
           <div key="overview">
             {overviewError && <ErrorMessage message={overviewError} />}
-            {companyOverview && <CompanyOverviewDisplay data={companyOverview} />}
+            {companyOverview && (
+                <CompanyOverviewDisplay 
+                    data={companyOverview} 
+                    onSummarize={fetchAndSummarizeTranscript}
+                    isSummarizing={isGeneratingSummary}
+                />
+            )}
           </div>
         );
       case 'income':
@@ -1757,11 +1760,19 @@ const App = () => {
           </div>
         );
       case 'transcript':
-        if (!transcriptData && !transcriptError && !isFetchingTranscript) return null;
+        if (!transcriptData && !transcriptError && !isGeneratingSummary) return null;
         return (
             <div key="transcript">
                 {transcriptError && <ErrorMessage message={transcriptError} />}
-                {transcriptData && <EarningsTranscriptDisplay data={transcriptData} ticker={generatedForTicker} quarter={transcriptData.quarter} />}
+                {transcriptData && (
+                    <EarningsTranscriptDisplay 
+                        data={transcriptData} 
+                        ticker={generatedForTicker} 
+                        summary={transcriptSummary}
+                        isSummarizing={isGeneratingSummary}
+                        summaryError={summaryError}
+                    />
+                )}
             </div>
         );
       case 'gemini':
@@ -1818,8 +1829,6 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchStockChart={fetchStockChart}
                   isFetchingChart={isFetchingChart}
-                  onFetchTranscript={fetchEarningsTranscript}
-                  isFetchingTranscript={isFetchingTranscript}
                 />
                 <ErrorMessage message={saveError} />
               </div>
