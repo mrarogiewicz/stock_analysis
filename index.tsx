@@ -280,7 +280,8 @@ const useStockAnalysisGenerator = () => {
   const fetchAndSummarizeTranscript = useCallback(async () => {
       if (!generatedForTicker) return;
 
-      addToResultOrder('transcript');
+      // Do NOT add to resultOrder ('transcript') as we show it in Overview now.
+      
       setIsFetchingTranscript(true);
       setIsGeneratingSummary(true);
       
@@ -378,7 +379,7 @@ const useStockAnalysisGenerator = () => {
           setIsGeneratingSummary(false);
           setIsFetchingTranscript(false);
       }
-  }, [generatedForTicker, addToResultOrder, companyOverview]);
+  }, [generatedForTicker, companyOverview]);
   
   // Helper to just switch range in UI without fetching
   const setRange = (range) => {
@@ -683,7 +684,11 @@ const SuccessDisplay = ({
     onGenerateWithGemini,
     isGeneratingWithGemini,
     onFetchStockChart,
-    isFetchingChart
+    isFetchingChart,
+    onFetchTranscript, // Keep prop but we use it inside Overview now
+    isFetchingTranscript,
+    isGeneratingSummary,
+    transcriptSummary
 }) => {
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
@@ -883,8 +888,9 @@ const GeminiResponseDisplay = ({ content, ticker, title }: { content: any; ticke
     );
 };
 
-const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing }) => {
+const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing, transcriptSummary }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
   if (!data) return null;
 
@@ -1002,6 +1008,15 @@ const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing }) => {
   const netInsiderValue = insiderBuyValue - insiderSellValue;
   const netInsiderColor = netInsiderValue >= 0 ? 'text-green-600' : 'text-red-600';
 
+  const getSummaryHtml = () => {
+    if (!transcriptSummary) return '';
+    try {
+        return marked.parse(transcriptSummary);
+    } catch {
+        return transcriptSummary;
+    }
+  };
+
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
        {/* Header: Basic Info */}
@@ -1018,21 +1033,22 @@ const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing }) => {
              </div>
              <div className="text-right text-xs text-gray-500 hidden sm:flex flex-col items-end gap-1">
                 <p>Fiscal Year End: {data.FiscalYearEnd}</p>
-                <div className="flex items-center gap-2">
-                    <p>Latest Qtr: {data.LatestQuarter}</p>
-                    <button
-                        onClick={onSummarize}
-                        disabled={isSummarizing}
-                        className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 hover:bg-blue-100 transition-colors flex items-center gap-1 disabled:opacity-50"
-                        title="Fetch and summarize earnings call"
-                    >
-                         {isSummarizing ? (
-                             <Spinner className="w-3 h-3" />
-                         ) : (
-                             <span>📄 Summarize Earnings</span>
-                         )}
-                    </button>
-                </div>
+                <p>Latest Qtr: {data.LatestQuarter}</p>
+                <button
+                    onClick={onSummarize}
+                    disabled={isSummarizing}
+                    className="text-[10px] text-gray-500 hover:text-gray-800 transition-colors flex items-center gap-1 disabled:opacity-50 mt-1"
+                    title="Fetch and summarize earnings call"
+                >
+                     {isSummarizing ? (
+                         <Spinner className="w-3 h-3" />
+                     ) : (
+                         <>
+                             <img src="https://cdn-icons-png.flaticon.com/128/16921/16921758.png" className="w-3 h-3 opacity-60" alt="" />
+                             <span>Summarize Earnings</span>
+                         </>
+                     )}
+                </button>
              </div>
           </div>
           
@@ -1050,6 +1066,28 @@ const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing }) => {
                  <span className="text-xs text-[#38B6FF] font-medium mt-1 inline-block group-hover:underline">Read more</span>
              )}
           </div>
+          
+          {transcriptSummary && (
+              <div 
+                className="mt-4 cursor-pointer group border-t border-gray-100 pt-3"
+                onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsSummaryExpanded(!isSummaryExpanded) }}
+              >
+                 <h4 className="text-sm font-bold text-gray-800 mb-1">Earnings Call Executive Summary</h4>
+                 <div 
+                    className={`prose prose-sm text-gray-700 leading-relaxed text-sm transition-all duration-200 max-w-none ${isSummaryExpanded ? '' : 'line-clamp-1'}`}
+                    dangerouslySetInnerHTML={{ __html: getSummaryHtml() }}
+                 />
+                 {!isSummaryExpanded && (
+                     <span className="text-xs text-[#38B6FF] font-medium mt-1 inline-block group-hover:underline">Read more</span>
+                 )}
+                 {isSummaryExpanded && (
+                     <span className="text-xs text-gray-400 font-medium mt-1 inline-block group-hover:underline">Show less</span>
+                 )}
+              </div>
+          )}
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
@@ -1169,22 +1207,10 @@ const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summa
                  <h3 className="font-bold text-gray-800 text-lg">Earnings Call Transcript</h3>
                  <p className="text-sm text-gray-500">{data.quarter ? `Quarter: ${data.quarter}` : ''}</p>
               </div>
-              {isSummarizing && (
-                  <div className="flex items-center gap-2 text-sm text-[#38B6FF] font-medium">
-                      <Spinner className="w-4 h-4" />
-                      <span>Generating Summary...</span>
-                  </div>
-              )}
            </div>
            
            {summaryError && <ErrorMessage message={summaryError} />}
            
-           {summary && (
-               <div className="mb-8">
-                   <GeminiResponseDisplay content={summary} ticker={ticker} title="Executive Summary" />
-               </div>
-           )}
-
            <div className="bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto space-y-6">
                {data.transcript.map((item, idx) => (
                    <div key={idx} className="text-sm">
@@ -1703,6 +1729,7 @@ const App = () => {
     
     // Transcript Props
     transcriptData,
+    isFetchingTranscript,
     transcriptError,
     transcriptSummary,
     isGeneratingSummary,
@@ -1728,6 +1755,7 @@ const App = () => {
                     data={companyOverview} 
                     onSummarize={fetchAndSummarizeTranscript}
                     isSummarizing={isGeneratingSummary}
+                    transcriptSummary={transcriptSummary}
                 />
             )}
           </div>
@@ -1829,6 +1857,10 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchStockChart={fetchStockChart}
                   isFetchingChart={isFetchingChart}
+                  onFetchTranscript={fetchAndSummarizeTranscript} // Updated usage, though button removed in component
+                  isFetchingTranscript={isFetchingTranscript}
+                  isGeneratingSummary={isGeneratingSummary}
+                  transcriptSummary={transcriptSummary}
                 />
                 <ErrorMessage message={saveError} />
               </div>
