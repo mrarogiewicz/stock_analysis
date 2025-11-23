@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -846,8 +845,6 @@ const CompanyOverviewDisplay = ({ data }) => {
   let insiderBuyValue = 0;
   let insiderSellShares = 0;
   let insiderSellValue = 0;
-  let ceoNetShares = 0;
-  let ceoNetValue = 0;
 
   if (data.insiderTransactions && data.insiderTransactions.data) {
       data.insiderTransactions.data.forEach(t => {
@@ -868,17 +865,6 @@ const CompanyOverviewDisplay = ({ data }) => {
                       insiderSellShares += shares;
                       insiderSellValue += val;
                   }
-
-                  // CEO Logic
-                  if (t.executive_title && t.executive_title.toLowerCase().includes('ceo')) {
-                      if (isAcquisition) {
-                          ceoNetShares += shares;
-                          ceoNetValue += val;
-                      } else if (isDisposal) {
-                          ceoNetShares -= shares;
-                          ceoNetValue -= val;
-                      }
-                  }
               }
           }
       });
@@ -892,7 +878,9 @@ const CompanyOverviewDisplay = ({ data }) => {
     return '$' + absVal.toFixed(0);
   };
   
-  const ceoColor = ceoNetValue > 0 ? 'text-green-600' : (ceoNetValue < 0 ? 'text-red-600' : 'text-gray-900');
+  const netInsiderShares = insiderBuyShares - insiderSellShares;
+  const netInsiderValue = insiderBuyValue - insiderSellValue;
+  const netInsiderColor = netInsiderValue >= 0 ? 'text-green-600' : 'text-red-600';
 
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
@@ -969,9 +957,7 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <dt className="text-gray-500">Float Shares</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesFloat)}</dd>
                 <dt className="text-gray-500">% Insiders</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInsiders ? parseFloat(data.PercentInsiders).toFixed(2) + '%' : 'N/A'}</dd>
                 <dt className="text-gray-500">% Institutions</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInstitutions ? parseFloat(data.PercentInstitutions).toFixed(2) + '%' : 'N/A'}</dd>
-                <dt className="text-gray-500">Insider Buy (FY)</dt> <dd className="text-right font-medium text-green-600">{formatLargeNumber(insiderBuyShares)} / {formatMoneyShort(insiderBuyValue)}</dd>
-                <dt className="text-gray-500">Insider Sell (FY)</dt> <dd className="text-right font-medium text-red-600">{formatLargeNumber(insiderSellShares)} / {formatMoneyShort(insiderSellValue)}</dd>
-                <dt className="text-gray-500">CEO Activity (FY)</dt> <dd className={`text-right font-medium ${ceoColor}`}>{formatLargeNumber(Math.abs(ceoNetShares))} / {formatMoneyShort(ceoNetValue)}</dd>
+                <dt className="text-gray-500">Net Insider (FY)</dt> <dd className={`text-right font-medium ${netInsiderColor}`}>{formatLargeNumber(Math.abs(netInsiderShares))} / {formatMoneyShort(netInsiderValue)}</dd>
              </dl>
           </div>
           
