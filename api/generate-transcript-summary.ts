@@ -62,9 +62,9 @@ Style Requirements:
 
     const prompt = `Now produce the investor-style executive summary for the following transcript for ${ticker} (${quarter}):\n\n${transcriptText}`;
 
-    // Using gemini-3-pro-preview for complex text tasks and large context handling
+    // Using gemini-2.5-flash for reliable summarization and large context handling
     const result = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         systemInstruction: systemInstruction
@@ -76,6 +76,7 @@ Style Requirements:
   } catch (error) {
     console.error('Error generating summary:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Return details so frontend can show them
     return response.status(500).json({ error: 'Failed to generate summary.', details: errorMessage });
   }
 }

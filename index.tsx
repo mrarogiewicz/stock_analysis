@@ -1140,7 +1140,10 @@ const EarningsTranscriptDisplay = ({ data, ticker, quarter }) => {
             });
 
             const resData = await res.json();
-            if (!res.ok) throw new Error(resData.error || "Failed to generate summary");
+            if (!res.ok) {
+                // Include details if available to help debug
+                throw new Error(`${resData.error || "Failed to generate summary"}${resData.details ? `: ${resData.details}` : ''}`);
+            }
             
             setSummary(resData.text);
 
