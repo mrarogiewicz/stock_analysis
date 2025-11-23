@@ -40,10 +40,9 @@ async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
                 return { error: data["Error Message"], _debugUrl: url };
             }
             
-            // Alpha Vantage transcript usually returns simply the symbol and content, or empty if not found
-            if (!data.symbol && !data.content) {
-                 // Sometimes it returns just {} if no data, or a message saying no data
-                 // We attach the url to the data object so the caller can debug
+            // Alpha Vantage transcript usually returns symbol, quarter, and transcript array.
+            // If empty object or just meta data without transcript, it's failed.
+            if (!data.symbol && !data.transcript) {
                  return { ...data, _debugUrl: url };
             }
 
@@ -108,9 +107,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
         
-        const content = transcriptData.content;
+        // Parse the transcript data based on structure: { symbol: "...", quarter: "...", transcript: [ { speaker: "...", content: "..." }, ... ] }
+        let fullTranscriptText = "";
+
+        if (Array.isArray(transcriptData.transcript)) {
+            fullTranscriptText = transcriptData.transcript
+                .map((item: any) => `${item.speaker || 'Speaker'}: ${item.content}`)
+                .join("\n\n");
+        } else if (transcriptData.content && typeof transcriptData.content === 'string') {
+             // Fallback if structure is different (single string)
+             fullTranscriptText = transcriptData.content;
+        }
         
-        if (!content) {
+        if (!fullTranscriptText) {
             return res.status(404).json({ 
                 error: `No transcript found for ${ticker} ${quarterParam}`,
                 debugUrl: transcriptData._debugUrl
@@ -132,8 +141,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         - Keep it concise and professional.
         
         Transcript:
-        ${content}
-        `;
+        ${fullTranscriptText.substring(0, 100000)} 
+        `; // Limit characters to avoid token limits if transcript is massive
 
         const genAIResponse = await ai.models.generateContent({
             model: 'gemini-3-pro-preview', // Using pro model for complex summarization
