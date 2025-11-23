@@ -1037,14 +1037,14 @@ const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing, transcriptSu
                 <button
                     onClick={onSummarize}
                     disabled={isSummarizing}
-                    className="text-[10px] text-gray-500 hover:text-gray-800 transition-colors flex items-center gap-1 disabled:opacity-50 mt-1"
+                    className="bg-[#38B6FF]/10 text-[#38B6FF] px-3 py-1.5 rounded-lg hover:bg-[#38B6FF]/20 transition-all flex items-center gap-2 disabled:opacity-50 mt-2 text-xs font-semibold shadow-sm"
                     title="Fetch and summarize earnings call"
                 >
                      {isSummarizing ? (
-                         <Spinner className="w-3 h-3" />
+                         <Spinner className="w-3 h-3 text-[#38B6FF]" />
                      ) : (
                          <>
-                             <img src="https://cdn-icons-png.flaticon.com/128/16921/16921758.png" className="w-3 h-3 opacity-60" alt="" />
+                             <img src="https://cdn-icons-png.flaticon.com/128/16921/16921758.png" className="w-3 h-3" alt="" />
                              <span>Summarize Earnings</span>
                          </>
                      )}
