@@ -2,6 +2,39 @@
 // /api/company-overview.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+async function fetchWithRetry(urlBase: string, keys: string[]) {
+    let lastData = null;
+    for (const apiKey of keys) {
+        const url = `${urlBase}&apikey=${apiKey}`;
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) {
+                console.error(`Failed fetch with key ending ...${apiKey?.slice(-4)} status: ${resp.status}`);
+                continue;
+            }
+            const data = await resp.json();
+            lastData = data;
+            
+            const note = data["Note"] || data["Information"];
+            if (note && (note.includes("rate limit") || note.includes("call frequency"))) {
+                console.log(`Rate limit hit for key ending ...${apiKey?.slice(-4)}`);
+                continue;
+            }
+            if (data["Error Message"]) return { error: data["Error Message"] };
+            
+            return data;
+        } catch (e) {
+            console.error(`Error with key ending ...${apiKey?.slice(-4)}:`, e);
+            continue;
+        }
+    }
+    
+    if (lastData && (lastData["Note"] || lastData["Information"])) {
+         return { error: "Rate limit exceeded on all keys." };
+    }
+    return { error: "Failed to fetch data." };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { ticker } = req.query;
 
@@ -21,57 +54,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: "The 'ALPHA_KEY' environment variables are not set on the server." });
     }
 
-    let lastData = null;
+    const overviewUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}`;
+    const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}`;
 
-    for (const apiKey of keys) {
-        const alphaVantageUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${apiKey}`;
-
-        try {
-            const alphaVantageResponse = await fetch(alphaVantageUrl);
-            
-            if (!alphaVantageResponse.ok) {
-                console.error(`Failed fetch with key ending ...${apiKey?.slice(-4)} status: ${alphaVantageResponse.status}`);
-                continue; 
-            }
-            
-            const data = await alphaVantageResponse.json();
-            lastData = data;
-
-            // Check for rate limit messages
-            const note = data["Note"] || data["Information"];
-            if (note && (
-                note.includes("rate limit") || 
-                note.includes("call frequency") || 
-                note.includes("requests per day") ||
-                note.includes("higher API call frequency")
-            )) {
-                console.log(`Rate limit hit for key ending ...${apiKey?.slice(-4)}. trying next key.`);
-                continue;
-            }
-
-            // Alpha Vantage returns an error message for invalid tickers
-            if (data["Error Message"]) {
-                 return res.status(400).json({ error: data["Error Message"] });
-            }
-            
-            // If empty object is returned (sometimes happens with invalid tickers)
-            if (Object.keys(data).length === 0) {
-                 return res.status(404).json({ error: 'No overview data found for this ticker.' });
-            }
-
-            return res.status(200).json(data);
-
-        } catch (error) {
-            console.error(`Error with key ending ...${apiKey?.slice(-4)}:`, error);
-            continue;
-        }
+    // Fetch Overview
+    const overviewData = await fetchWithRetry(overviewUrl, keys);
+    
+    if (overviewData.error) {
+         return res.status(400).json(overviewData);
+    }
+    if (Object.keys(overviewData).length === 0) {
+        return res.status(404).json({ error: 'No overview data found for this ticker.' });
     }
 
-    // If we exhausted all keys
-    if (lastData && (lastData["Note"] || lastData["Information"])) {
-        const msg = lastData["Note"] || lastData["Information"];
-        return res.status(429).json({ error: "API rate limit exceeded on all keys.", details: msg });
-    }
+    // Fetch Current Price
+    const quoteData = await fetchWithRetry(quoteUrl, keys);
 
-    return res.status(500).json({ error: "Failed to fetch company overview data after trying all available API keys." });
+    // Merge results
+    const result = {
+        ...overviewData,
+        ...quoteData
+    };
+
+    return res.status(200).json(result);
 }

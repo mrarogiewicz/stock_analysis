@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -759,6 +758,19 @@ const CompanyOverviewDisplay = ({ data }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!data) return null;
+
+  const globalQuote = data['Global Quote'];
+  const currentPrice = globalQuote ? globalQuote['05. price'] : null;
+  const targetPrice = data.AnalystTargetPrice;
+
+  let upside = null;
+  if (currentPrice && targetPrice && targetPrice !== 'None' && currentPrice !== 'None') {
+      const c = parseFloat(currentPrice);
+      const t = parseFloat(targetPrice);
+      if (!isNaN(c) && !isNaN(t) && c !== 0) {
+          upside = ((t - c) / c) * 100;
+      }
+  }
   
   // Helper to format large numbers
   const formatLargeNumber = (num) => {
@@ -892,9 +904,20 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <span className="bg-yellow-100 text-yellow-600 p-1 rounded">⭐</span> Analyst Ratings
              </h3>
              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="text-sm">
-                    <span className="text-gray-500">Target Price: </span>
-                    <span className="font-bold text-gray-900 text-lg">{formatCurrency(data.AnalystTargetPrice)}</span>
+                <div className="text-sm flex flex-col gap-1">
+                    <div>
+                        <span className="text-gray-500">Current Price: </span>
+                        <span className="font-bold text-gray-900 text-lg">{formatCurrency(currentPrice)}</span>
+                    </div>
+                    <div>
+                        <span className="text-gray-500">Target Price: </span>
+                        <span className="font-bold text-gray-900 text-lg">{formatCurrency(data.AnalystTargetPrice)}</span>
+                    </div>
+                    {upside !== null && (
+                         <div className={`font-bold ${upside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                             {upside >= 0 ? 'Upside' : 'Downside'}: {upside.toFixed(2)}%
+                         </div>
+                    )}
                 </div>
                 <div className="flex flex-grow justify-end gap-1 sm:gap-4 text-xs sm:text-sm font-medium text-gray-700">
                    <div className="flex flex-col items-center p-2 bg-green-50 rounded border border-green-100 min-w-[60px]">
@@ -1197,6 +1220,21 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         const lastDate = new Date(lastItem.timestamp);
         let startDate = new Date(lastDate);
 
+        if (range === '1D') {
+             // Show only the last available date (last trading day)
+             // We filter by checking if year, month, and day match the last available point.
+             const targetDay = lastDate.getDate();
+             const targetMonth = lastDate.getMonth();
+             const targetYear = lastDate.getFullYear();
+             
+             return chartData.filter(item => {
+                 const d = new Date(item.timestamp);
+                 return d.getDate() === targetDay && 
+                        d.getMonth() === targetMonth && 
+                        d.getFullYear() === targetYear;
+             });
+        }
+
         if (range === '1M') {
             startDate.setMonth(lastDate.getMonth() - 1);
         } else if (range === '3M') {
@@ -1208,7 +1246,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
         } else if (range === '5Y') {
             startDate.setFullYear(lastDate.getFullYear() - 5);
         } else {
-            // For 1D and 1W (Intraday), we usually just show what's returned by compact
+            // For 1W (Intraday), we usually just show what's returned by compact (approx 100 points)
             return chartData;
         }
 
