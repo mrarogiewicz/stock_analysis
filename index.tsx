@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -756,6 +757,9 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
 
 const CompanyOverviewDisplay = ({ data }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [transcriptSummary, setTranscriptSummary] = useState(null);
+  const [transcriptError, setTranscriptError] = useState(null);
 
   if (!data) return null;
 
@@ -806,7 +810,7 @@ const CompanyOverviewDisplay = ({ data }) => {
       return isNaN(n) ? num : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Determine start of Fiscal Year
+  // Determine start of Fiscal Year and Current Quarter for Transcript
   const getFiscalYearStart = (fyEndStr) => {
     if (!fyEndStr || fyEndStr === 'None') return new Date(new Date().setFullYear(new Date().getFullYear() - 1));
     
@@ -820,17 +824,8 @@ const CompanyOverviewDisplay = ({ data }) => {
 
     const now = new Date();
     const currentYear = now.getFullYear();
-    
-    // If today is AFTER the FY end month, the FY started this year.
-    // Example: FY Ends Sept. Today is Nov 2025. Recent FY ended Sept 2025. FY Started Oct 2025? 
-    // Wait, usually if FY ends Sept 2025, that's FY 2025. New FY 2026 starts Oct 2025.
-    // If today is Aug 2025. Recent FY ends Sept 2025. FY Started Oct 2024.
-    
-    // Let's find the most recent fiscal year START.
-    // If current month > fyEndMonth, FY started this year (fyEndMonth + 1).
-    // If current month <= fyEndMonth, FY started last year (fyEndMonth + 1).
-    
     const currentMonth = now.getMonth();
+    
     let fyStartYear = currentYear;
     if (currentMonth <= fyEndMonth) {
         fyStartYear = currentYear - 1;
@@ -839,6 +834,22 @@ const CompanyOverviewDisplay = ({ data }) => {
   };
 
   const fyStartDate = getFiscalYearStart(data.FiscalYearEnd);
+  
+  // Calculate Fiscal Quarter info for Transcript API
+  let latestQuarterStr = data.LatestQuarter; // e.g. "2025-09-30"
+  let transcriptYear = '';
+  let transcriptQuarter = '';
+
+  if (latestQuarterStr && latestQuarterStr !== 'None') {
+      const d = new Date(latestQuarterStr);
+      if (!isNaN(d.getTime())) {
+          transcriptYear = d.getFullYear().toString();
+          const m = d.getMonth(); // 0-11
+          // Q1: 0-2, Q2: 3-5, Q3: 6-8, Q4: 9-11
+          const q = Math.floor(m / 3) + 1;
+          transcriptQuarter = q.toString();
+      }
+  }
 
   // Calculate Insider Activity for Current FY
   let insiderBuyShares = 0;
@@ -882,6 +893,42 @@ const CompanyOverviewDisplay = ({ data }) => {
   const netInsiderValue = insiderBuyValue - insiderSellValue;
   const netInsiderColor = netInsiderValue >= 0 ? 'text-green-600' : 'text-red-600';
 
+  const handleSummarizeEarnings = async () => {
+     if (!transcriptYear || !transcriptQuarter) {
+         setTranscriptError("Could not determine latest quarter for transcript.");
+         return;
+     }
+
+     setIsSummarizing(true);
+     setTranscriptError(null);
+     setTranscriptSummary(null);
+
+     try {
+         const res = await fetch('/api/summarize-earnings', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+                 ticker: data.Symbol,
+                 year: transcriptYear,
+                 quarter: transcriptQuarter
+             })
+         });
+         
+         const resData = await res.json();
+         if (!res.ok) {
+             throw new Error(resData.error || "Failed to fetch summary.");
+         }
+         
+         setTranscriptSummary(resData.summary);
+
+     } catch (e) {
+         console.error(e);
+         setTranscriptError(e.message);
+     } finally {
+         setIsSummarizing(false);
+     }
+  };
+
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
        {/* Header: Basic Info */}
@@ -896,9 +943,26 @@ const CompanyOverviewDisplay = ({ data }) => {
                    <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">{data.Country}</span>
                 </div>
              </div>
-             <div className="text-right text-xs text-gray-500 hidden sm:block">
+             <div className="text-right text-xs text-gray-500 hidden sm:flex flex-col items-end gap-1">
                 <p>Fiscal Year End: {data.FiscalYearEnd}</p>
                 <p>Latest Qtr: {data.LatestQuarter}</p>
+                {transcriptYear && (
+                    <button
+                        onClick={handleSummarizeEarnings}
+                        disabled={isSummarizing}
+                        className="flex items-center gap-1 text-[#38B6FF] hover:text-blue-600 transition-colors mt-1 disabled:opacity-50"
+                        title={`Summarize ${transcriptYear} Q${transcriptQuarter} Earnings Call`}
+                    >
+                        {isSummarizing ? (
+                            <Spinner className="w-3 h-3" />
+                        ) : (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        )}
+                        <span className="underline">Summarize Call</span>
+                    </button>
+                )}
              </div>
           </div>
           
@@ -916,6 +980,23 @@ const CompanyOverviewDisplay = ({ data }) => {
                  <span className="text-xs text-[#38B6FF] font-medium mt-1 inline-block group-hover:underline">Read more</span>
              )}
           </div>
+          
+          {/* Transcript Summary Section */}
+          {(transcriptSummary || transcriptError) && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg text-sm border border-blue-100 animate-[fadeIn_0.5s_ease-in-out]">
+                  <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Earnings Call Summary ({transcriptYear} Q{transcriptQuarter})
+                  </h4>
+                  {transcriptError ? (
+                      <p className="text-red-600">{transcriptError}</p>
+                  ) : (
+                      <div className="prose prose-sm max-w-none text-gray-700">
+                          <p>{transcriptSummary}</p>
+                      </div>
+                  )}
+              </div>
+          )}
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
