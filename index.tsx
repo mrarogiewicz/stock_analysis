@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -822,7 +821,7 @@ const Preview = ({ content }) => {
   );
 };
 
-const GeminiResponseDisplay = ({ content, ticker }) => {
+const GeminiResponseDisplay = ({ content, ticker, title }: { content: any; ticker: any; title?: string }) => {
     if (!content) return null;
     
     const getHtmlContent = () => {
@@ -838,10 +837,10 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
           <h3 className="text-center font-medium text-gray-700 mb-4">
-            Gemini Pro Analysis for{' '}
-            <span style={{ color: '#38B6FF' }} className="font-bold">
+            {title || `Gemini Pro Analysis for `}
+            {!title && <span style={{ color: '#38B6FF' }} className="font-bold">
               {ticker}
-            </span>
+            </span>}
           </h3>
           <div 
             className="prose text-sm text-gray-700 max-w-none bg-gray-50 p-4 rounded-lg max-h-[30rem] overflow-y-auto"
@@ -1115,16 +1114,82 @@ const CompanyOverviewDisplay = ({ data }) => {
 };
 
 const EarningsTranscriptDisplay = ({ data, ticker, quarter }) => {
+    const [summary, setSummary] = useState(null);
+    const [isSummarizing, setIsSummarizing] = useState(false);
+    const [summaryError, setSummaryError] = useState(null);
+
     if (!data || !data.transcript) return null;
     
+    const handleSummarize = async () => {
+        setIsSummarizing(true);
+        setSummaryError(null);
+        setSummary(null);
+
+        try {
+            // Flatten transcript
+            const transcriptText = data.transcript.map(item => `${item.speaker}: ${item.content}`).join('\n\n');
+            
+            const res = await fetch('/api/generate-transcript-summary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transcriptText,
+                    ticker,
+                    quarter: data.quarter || quarter
+                })
+            });
+
+            const resData = await res.json();
+            if (!res.ok) throw new Error(resData.error || "Failed to generate summary");
+            
+            setSummary(resData.text);
+
+        } catch (e) {
+            setSummaryError(e.message);
+        } finally {
+            setIsSummarizing(false);
+        }
+    };
+
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
-           <div className="mb-4">
-              <h3 className="font-bold text-gray-800 text-lg">Earnings Call Transcript</h3>
-              <p className="text-sm text-gray-500">{data.quarter ? `Quarter: ${data.quarter}` : ''}</p>
+           <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                 <h3 className="font-bold text-gray-800 text-lg">Earnings Call Transcript</h3>
+                 <p className="text-sm text-gray-500">{data.quarter ? `Quarter: ${data.quarter}` : ''}</p>
+              </div>
+              <button
+                onClick={handleSummarize}
+                disabled={isSummarizing}
+                className="flex items-center gap-2 bg-[#38B6FF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#32a3e6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                  {isSummarizing ? (
+                      <>
+                          <Spinner className="w-4 h-4" />
+                          <span>Summarizing...</span>
+                      </>
+                  ) : (
+                      <>
+                        <img 
+                             src="https://registry.npmmirror.com/@lobehub/icons-static-png/1.74.0/files/dark/gemini-color.png" 
+                             alt="" 
+                             className="w-4 h-4 object-contain brightness-0 invert" 
+                         />
+                        <span>Summarize with Gemini Pro</span>
+                      </>
+                  )}
+              </button>
            </div>
            
+           {summaryError && <ErrorMessage message={summaryError} />}
+           
+           {summary && (
+               <div className="mb-8">
+                   <GeminiResponseDisplay content={summary} ticker={ticker} title="Executive Summary" />
+               </div>
+           )}
+
            <div className="bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto space-y-6">
                {data.transcript.map((item, idx) => (
                    <div key={idx} className="text-sm">
