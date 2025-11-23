@@ -17,7 +17,7 @@ export default async function handler(request, response) {
     }
 
     // Fetch the prompt template from GitHub
-    const promptUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/58a7ec6c1a7a09ff0271acf466b6997a2d8ad609/earnings_transcript_summarization.md';
+    const promptUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/earnings_transcript_summarization.md';
     const promptResponse = await fetch(promptUrl);
 
     if (!promptResponse.ok) {
