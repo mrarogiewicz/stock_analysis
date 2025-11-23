@@ -72,20 +72,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const incomeUrl = `https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol=${ticker}`;
     const balanceUrl = `https://www.alphavantage.co/query?function=BALANCE_SHEET&symbol=${ticker}`;
-    const sharesUrl = `https://www.alphavantage.co/query?function=SHARES_OUTSTANDING&symbol=${ticker}`;
 
     const incomeData = await fetchWithKeyRotation(incomeUrl, keys);
     const balanceData = await fetchWithKeyRotation(balanceUrl, keys);
-    const sharesData = await fetchWithKeyRotation(sharesUrl, keys);
 
-    // If critical income data is missing, fail. Balance/Shares are supplementary.
+    // If critical income data is missing, fail. Balance is supplementary.
     if (incomeData.error || !incomeData.annualReports) {
         return res.status(400).json({ error: incomeData.error || "Failed to fetch income statement." });
     }
 
     return res.status(200).json({
         income: incomeData,
-        balance: balanceData,
-        shares: sharesData
+        balance: balanceData
     });
 }

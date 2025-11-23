@@ -1231,11 +1231,10 @@ const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summa
 const IncomeStatementDisplay = ({ data, ticker }) => {
     const [reportType, setReportType] = useState('annual'); // 'annual' or 'quarterly'
 
-    // Data structure is now { income, balance, shares }
+    // Data structure is now { income, balance }
     // Check availability based on Income Statement as primary
     const incomeReports = data?.income ? (reportType === 'annual' ? data.income.annualReports : data.income.quarterlyReports) : [];
     const balanceReports = data?.balance ? (reportType === 'annual' ? data.balance.annualReports : data.balance.quarterlyReports) : [];
-    const shareData = data?.shares?.data || [];
 
     const hasAnnualData = data?.income?.annualReports?.length > 0;
     const hasQuarterlyData = data?.income?.quarterlyReports?.length > 0;
@@ -1329,42 +1328,6 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
             data: balanceReports
         }
     ];
-
-    // For Share Stats, we need to match dates from shareData array to the columns (reports dates)
-    // We create a "virtual" report list for shares
-    const matchedShareReports = incomeReports.map(report => {
-        const rDate = report.fiscalDateEnding;
-        // Find exact or closest share date. For simplicity, exact match or closest in past 3 months?
-        // Let's look for exact match first
-        let s = shareData.find(d => d.date === rDate);
-        if (!s && reportType === 'quarterly') {
-             // Try to find closest entry within 5 days (sometimes off by few days)
-             const targetTime = new Date(rDate).getTime();
-             s = shareData.find(d => {
-                 const t = new Date(d.date).getTime();
-                 return Math.abs(targetTime - t) < 5 * 24 * 60 * 60 * 1000;
-             });
-        }
-        // For annual, maybe just find the entry closest to year end
-        if (!s && reportType === 'annual') {
-             s = shareData.find(d => d.date === rDate);
-        }
-        
-        return {
-            fiscalDateEnding: rDate,
-            ...s
-        };
-    });
-    
-    sections.push({
-        title: 'Share Statistics',
-        metrics: {
-            'shares_outstanding_basic': 'Shares Outstanding (Basic)',
-            'shares_outstanding_diluted': 'Shares Outstanding (Diluted)'
-        },
-        data: matchedShareReports,
-        formatter: formatLargeNumber
-    });
 
     const reportsToShow = reportType === 'annual' ? 5 : 6;
     const dates = incomeReports.slice(0, reportsToShow).map(r => r.fiscalDateEnding);
