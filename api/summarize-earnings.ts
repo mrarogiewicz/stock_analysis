@@ -1,7 +1,6 @@
 
 // /api/summarize-earnings.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI } from '@google/genai';
 
 // Helper function to fetch a specific URL with key rotation (Reused logic)
 async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
@@ -87,10 +86,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: "The 'ALPHA_KEY' environment variables are not set." });
     }
     
-    if (!process.env.API_KEY) {
-        return res.status(500).json({ error: "The Gemini 'API_KEY' is not set." });
-    }
-
     try {
         // 2. Fetch Transcript
         const quarterParam = `${year}Q${quarter}`;
@@ -107,53 +102,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
         
-        // Parse the transcript data based on structure: { symbol: "...", quarter: "...", transcript: [ { speaker: "...", content: "..." }, ... ] }
-        let fullTranscriptText = "";
+        // Return raw transcript data structure
+        // structure: { symbol: "...", quarter: "...", transcript: [ { speaker: "...", content: "..." }, ... ] }
 
-        if (Array.isArray(transcriptData.transcript)) {
-            fullTranscriptText = transcriptData.transcript
-                .map((item: any) => `${item.speaker || 'Speaker'}: ${item.content}`)
-                .join("\n\n");
-        } else if (transcriptData.content && typeof transcriptData.content === 'string') {
-             // Fallback if structure is different (single string)
-             fullTranscriptText = transcriptData.content;
-        }
-        
-        if (!fullTranscriptText) {
-            return res.status(404).json({ 
+        if (!transcriptData.transcript || !Array.isArray(transcriptData.transcript)) {
+             return res.status(404).json({ 
                 error: `No transcript found for ${ticker} ${quarterParam}`,
                 debugUrl: transcriptData._debugUrl
             });
         }
 
-        // 3. Summarize with Gemini
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        
-        const promptText = `
-        You are a financial analyst. 
-        Read the following earnings call transcript for ${ticker} (${quarterParam}).
-        
-        Task: Create a single paragraph executive summary.
-        Requirements:
-        - Highlight the most important metrics reported.
-        - Mention sales/revenue performance.
-        - Summarize the future outlook provided by management.
-        - Keep it concise and professional.
-        
-        Transcript:
-        ${fullTranscriptText.substring(0, 100000)} 
-        `; // Limit characters to avoid token limits if transcript is massive
-
-        const genAIResponse = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview', // Using pro model for complex summarization
-            contents: promptText,
+        return res.status(200).json({ 
+            symbol: transcriptData.symbol,
+            quarter: transcriptData.quarter,
+            transcript: transcriptData.transcript 
         });
-
-        return res.status(200).json({ summary: genAIResponse.text });
 
     } catch (error) {
         console.error("Error in summarize-earnings:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        return res.status(500).json({ error: "Internal server error summarizing earnings.", details: errorMessage });
+        return res.status(500).json({ error: "Internal server error fetching earnings.", details: errorMessage });
     }
 }

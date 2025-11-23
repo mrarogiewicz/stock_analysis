@@ -46,6 +46,10 @@ const useStockAnalysisGenerator = () => {
   const [chartError, setChartError] = useState(null);
   const [chartRange, setChartRange] = useState('3M'); // Default range
 
+  const [transcriptData, setTranscriptData] = useState(null);
+  const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
+  const [transcriptError, setTranscriptError] = useState(null);
+
   const [resultOrder, setResultOrder] = useState<string[]>([]);
 
   const addToResultOrder = useCallback((type) => {
@@ -71,6 +75,8 @@ const useStockAnalysisGenerator = () => {
     setOverviewError(null);
     setStockChartData(null);
     setChartError(null);
+    setTranscriptData(null);
+    setTranscriptError(null);
     setResultOrder([]);
 
 
@@ -224,10 +230,12 @@ const useStockAnalysisGenerator = () => {
         }
 
         setCompanyOverview(data);
+        return data; // Return data for other functions to use
 
     } catch (e) {
         console.error(e);
         setOverviewError(e.message);
+        return null;
     } finally {
         setIsFetchingOverview(false);
     }
@@ -261,6 +269,73 @@ const useStockAnalysisGenerator = () => {
         setIsFetchingChart(false);
     }
   }, [generatedForTicker, addToResultOrder]);
+
+  const fetchEarningsTranscript = useCallback(async () => {
+      if (!generatedForTicker) return;
+
+      addToResultOrder('transcript');
+      setIsFetchingTranscript(true);
+      setTranscriptError(null);
+      setTranscriptData(null);
+
+      try {
+          // We need Fiscal Year End and Latest Quarter to calculate the correct Year/Quarter param.
+          // Check if we have overview data, if not fetch it.
+          let overview = companyOverview;
+          if (!overview) {
+              const res = await fetch(`/api/company-overview?ticker=${generatedForTicker}`);
+              if (!res.ok) throw new Error("Could not fetch company details needed for transcript.");
+              overview = await res.json();
+              setCompanyOverview(overview); // Update state as a side effect
+          }
+
+          if (!overview || !overview.LatestQuarter) {
+              throw new Error("Could not determine latest quarter for transcript.");
+          }
+
+          // Calculate Fiscal Year/Quarter
+          let transcriptYear = '';
+          let transcriptQuarter = '';
+          const d = new Date(overview.LatestQuarter);
+          if (!isNaN(d.getTime())) {
+              transcriptYear = d.getFullYear().toString();
+              const m = d.getMonth();
+              const q = Math.floor(m / 3) + 1;
+              transcriptQuarter = q.toString();
+          }
+
+          if (!transcriptYear || !transcriptQuarter) {
+              throw new Error("Invalid dates for transcript.");
+          }
+
+          const res = await fetch('/api/summarize-earnings', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+                 ticker: generatedForTicker,
+                 year: transcriptYear,
+                 quarter: transcriptQuarter
+             })
+         });
+
+         const data = await res.json();
+         if (!res.ok) {
+             // Pass debug URL if present in error
+             if (data.debugUrl) {
+                 throw new Error(`${data.error || 'Failed to fetch transcript'} (Debug: ${data.debugUrl})`);
+             }
+             throw new Error(data.error || 'Failed to fetch transcript.');
+         }
+
+         setTranscriptData(data);
+
+      } catch (e) {
+          console.error(e);
+          setTranscriptError(e.message);
+      } finally {
+          setIsFetchingTranscript(false);
+      }
+  }, [generatedForTicker, addToResultOrder, companyOverview]);
   
   // Helper to just switch range in UI without fetching
   const setRange = (range) => {
@@ -305,6 +380,10 @@ const useStockAnalysisGenerator = () => {
     fetchStockChart,
     chartRange,
     setRange,
+    transcriptData,
+    isFetchingTranscript,
+    transcriptError,
+    fetchEarningsTranscript,
     resultOrder,
   };
 };
@@ -534,7 +613,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
 const ErrorMessage = ({ message }) => {
   if (!message) return null;
   return (
-    <div className="mt-4 bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+    <div className="mt-4 bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm break-words">
       {message}
     </div>
   );
@@ -555,7 +634,9 @@ const SuccessDisplay = ({
     onGenerateWithGemini,
     isGeneratingWithGemini,
     onFetchStockChart,
-    isFetchingChart
+    isFetchingChart,
+    onFetchTranscript,
+    isFetchingTranscript
 }) => {
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
@@ -606,6 +687,23 @@ const SuccessDisplay = ({
                                 className="w-4 h-4 object-contain" 
                             />
                             <span>Overview</span>
+                        </>
+                    )}
+                </button>
+                
+                <button
+                    onClick={onFetchTranscript}
+                    disabled={isFetchingTranscript}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                >
+                    {isFetchingTranscript ? (
+                        <Spinner className="w-4 h-4 text-gray-600" />
+                    ) : (
+                        <>
+                            <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Earnings Transcript</span>
                         </>
                     )}
                 </button>
@@ -757,10 +855,6 @@ const GeminiResponseDisplay = ({ content, ticker }) => {
 
 const CompanyOverviewDisplay = ({ data }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [transcriptSummary, setTranscriptSummary] = useState(null);
-  const [transcriptError, setTranscriptError] = useState(null);
-  const [transcriptDebugUrl, setTranscriptDebugUrl] = useState(null);
 
   if (!data) return null;
 
@@ -836,22 +930,6 @@ const CompanyOverviewDisplay = ({ data }) => {
 
   const fyStartDate = getFiscalYearStart(data.FiscalYearEnd);
   
-  // Calculate Fiscal Quarter info for Transcript API
-  let latestQuarterStr = data.LatestQuarter; // e.g. "2025-09-30"
-  let transcriptYear = '';
-  let transcriptQuarter = '';
-
-  if (latestQuarterStr && latestQuarterStr !== 'None') {
-      const d = new Date(latestQuarterStr);
-      if (!isNaN(d.getTime())) {
-          transcriptYear = d.getFullYear().toString();
-          const m = d.getMonth(); // 0-11
-          // Q1: 0-2, Q2: 3-5, Q3: 6-8, Q4: 9-11
-          const q = Math.floor(m / 3) + 1;
-          transcriptQuarter = q.toString();
-      }
-  }
-
   // Calculate Insider Activity for Current FY
   let insiderBuyShares = 0;
   let insiderBuyValue = 0;
@@ -894,46 +972,6 @@ const CompanyOverviewDisplay = ({ data }) => {
   const netInsiderValue = insiderBuyValue - insiderSellValue;
   const netInsiderColor = netInsiderValue >= 0 ? 'text-green-600' : 'text-red-600';
 
-  const handleSummarizeEarnings = async () => {
-     if (!transcriptYear || !transcriptQuarter) {
-         setTranscriptError("Could not determine latest quarter for transcript.");
-         return;
-     }
-
-     setIsSummarizing(true);
-     setTranscriptError(null);
-     setTranscriptSummary(null);
-     setTranscriptDebugUrl(null);
-
-     try {
-         const res = await fetch('/api/summarize-earnings', {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({
-                 ticker: data.Symbol,
-                 year: transcriptYear,
-                 quarter: transcriptQuarter
-             })
-         });
-         
-         const resData = await res.json();
-         if (!res.ok) {
-             if (resData.debugUrl) {
-                 setTranscriptDebugUrl(resData.debugUrl);
-             }
-             throw new Error(resData.error || "Failed to fetch summary.");
-         }
-         
-         setTranscriptSummary(resData.summary);
-
-     } catch (e) {
-         console.error(e);
-         setTranscriptError(e.message);
-     } finally {
-         setIsSummarizing(false);
-     }
-  };
-
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
        {/* Header: Basic Info */}
@@ -951,23 +989,6 @@ const CompanyOverviewDisplay = ({ data }) => {
              <div className="text-right text-xs text-gray-500 hidden sm:flex flex-col items-end gap-1">
                 <p>Fiscal Year End: {data.FiscalYearEnd}</p>
                 <p>Latest Qtr: {data.LatestQuarter}</p>
-                {transcriptYear && (
-                    <button
-                        onClick={handleSummarizeEarnings}
-                        disabled={isSummarizing}
-                        className="flex items-center gap-1 text-[#38B6FF] hover:text-blue-600 transition-colors mt-1 disabled:opacity-50"
-                        title={`Summarize ${transcriptYear} Q${transcriptQuarter} Earnings Call`}
-                    >
-                        {isSummarizing ? (
-                            <Spinner className="w-3 h-3" />
-                        ) : (
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        )}
-                        <span className="underline">Summarize Call</span>
-                    </button>
-                )}
              </div>
           </div>
           
@@ -985,32 +1006,6 @@ const CompanyOverviewDisplay = ({ data }) => {
                  <span className="text-xs text-[#38B6FF] font-medium mt-1 inline-block group-hover:underline">Read more</span>
              )}
           </div>
-          
-          {/* Transcript Summary Section */}
-          {(transcriptSummary || transcriptError) && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg text-sm border border-blue-100 animate-[fadeIn_0.5s_ease-in-out]">
-                  <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    Earnings Call Summary ({transcriptYear} Q{transcriptQuarter})
-                  </h4>
-                  {transcriptError ? (
-                      <div>
-                          <p className="text-red-600">{transcriptError}</p>
-                          {transcriptDebugUrl && (
-                             <div className="mt-2 text-xs">
-                                <a href={transcriptDebugUrl} target="_blank" rel="noopener noreferrer" className="text-red-500 underline hover:text-red-700">
-                                    Debug URL (Contains API Key)
-                                </a>
-                             </div>
-                          )}
-                      </div>
-                  ) : (
-                      <div className="prose prose-sm max-w-none text-gray-700">
-                          <p>{transcriptSummary}</p>
-                      </div>
-                  )}
-              </div>
-          )}
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
@@ -1117,6 +1112,33 @@ const CompanyOverviewDisplay = ({ data }) => {
        </div>
     </div>
   );
+};
+
+const EarningsTranscriptDisplay = ({ data, ticker, quarter }) => {
+    if (!data || !data.transcript) return null;
+    
+    return (
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+        <div className="p-6">
+           <div className="mb-4">
+              <h3 className="font-bold text-gray-800 text-lg">Earnings Call Transcript</h3>
+              <p className="text-sm text-gray-500">{data.quarter ? `Quarter: ${data.quarter}` : ''}</p>
+           </div>
+           
+           <div className="bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto space-y-6">
+               {data.transcript.map((item, idx) => (
+                   <div key={idx} className="text-sm">
+                       <div className="flex items-center gap-2 mb-1">
+                           <span className="font-bold text-gray-800">{item.speaker}</span>
+                           {item.title && <span className="text-xs text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{item.title}</span>}
+                       </div>
+                       <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{item.content}</p>
+                   </div>
+               ))}
+           </div>
+        </div>
+      </div>
+    );
 };
 
 
@@ -1618,6 +1640,10 @@ const App = () => {
     fetchStockChart,
     chartRange,
     setRange,
+    transcriptData,
+    isFetchingTranscript,
+    transcriptError,
+    fetchEarningsTranscript,
     resultOrder,
   } = useStockAnalysisGenerator();
 
@@ -1661,6 +1687,14 @@ const App = () => {
                  />
              )}
           </div>
+        );
+      case 'transcript':
+        if (!transcriptData && !transcriptError && !isFetchingTranscript) return null;
+        return (
+            <div key="transcript">
+                {transcriptError && <ErrorMessage message={transcriptError} />}
+                {transcriptData && <EarningsTranscriptDisplay data={transcriptData} ticker={generatedForTicker} quarter={transcriptData.quarter} />}
+            </div>
         );
       case 'gemini':
          if ((!geminiResponse && !geminiError)) return null;
@@ -1716,6 +1750,8 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchStockChart={fetchStockChart}
                   isFetchingChart={isFetchingChart}
+                  onFetchTranscript={fetchEarningsTranscript}
+                  isFetchingTranscript={isFetchingTranscript}
                 />
                 <ErrorMessage message={saveError} />
               </div>
