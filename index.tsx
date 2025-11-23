@@ -206,7 +206,7 @@ const useStockAnalysisGenerator = () => {
         const data = await res.json();
         
         if (!res.ok) {
-            throw new Error(data.error || 'Failed to fetch income statement.');
+            throw new Error(data.error || 'Failed to fetch financial data.');
         }
 
         setIncomeStatement(data);
@@ -685,7 +685,7 @@ const SuccessDisplay = ({
     isGeneratingWithGemini,
     onFetchStockChart,
     isFetchingChart,
-    onFetchTranscript, // Keep prop but we use it inside Overview now
+    onFetchTranscript,
     isFetchingTranscript,
     isGeneratingSummary,
     transcriptSummary
@@ -772,11 +772,11 @@ const SuccessDisplay = ({
                     ) : (
                         <>
                             <img 
-                                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8LzpNbop14ZIV69sK22MLFRAqkzB0L_bG-g&s" 
+                                src="https://cdn-icons-png.flaticon.com/128/3076/3076626.png" 
                                 alt="" 
                                 className="w-4 h-4 object-contain" 
                             />
-                            <span>Income Statement</span>
+                            <span>Financials</span>
                         </>
                     )}
                 </button>
@@ -1231,11 +1231,17 @@ const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summa
 const IncomeStatementDisplay = ({ data, ticker }) => {
     const [reportType, setReportType] = useState('annual'); // 'annual' or 'quarterly'
 
-    const hasAnnualData = data?.annualReports?.length > 0;
-    const hasQuarterlyData = data?.quarterlyReports?.length > 0;
+    // Data structure is now { income, balance, shares }
+    // Check availability based on Income Statement as primary
+    const incomeReports = data?.income ? (reportType === 'annual' ? data.income.annualReports : data.income.quarterlyReports) : [];
+    const balanceReports = data?.balance ? (reportType === 'annual' ? data.balance.annualReports : data.balance.quarterlyReports) : [];
+    const shareData = data?.shares?.data || [];
+
+    const hasAnnualData = data?.income?.annualReports?.length > 0;
+    const hasQuarterlyData = data?.income?.quarterlyReports?.length > 0;
 
     // Default to annual if it exists, otherwise quarterly.
-    React.useEffect(() => {
+    useEffect(() => {
         if (hasAnnualData) {
             setReportType('annual');
         } else if (hasQuarterlyData) {
@@ -1244,10 +1250,10 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
     }, [hasAnnualData, hasQuarterlyData]);
 
     if (!data || (!hasAnnualData && !hasQuarterlyData)) {
-        if (!data) return null; // Don't show anything if data object doesn't exist yet
+        if (!data) return null;
         return (
             <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6 text-center text-gray-600">
-                Income statement data not available for {ticker}.
+                Financial data not available for {ticker}.
             </div>
         );
     }
@@ -1278,31 +1284,97 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         }).format(num);
       }
     };
+    
+    const formatLargeNumber = (value) => {
+        if (value === 'None' || value === null || value === undefined) return 'N/A';
+        const num = Number(value);
+        if (isNaN(num)) return value;
+        if (Math.abs(num) >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+        if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+        return num.toLocaleString();
+    };
 
     const formatQuarter = (dateString) => {
         const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString; // Fallback for invalid dates
+        if (isNaN(date.getTime())) return dateString;
         const year = date.getFullYear();
         const month = date.getMonth(); // 0-11
         const quarter = Math.floor(month / 3) + 1;
         return `${year}Q${quarter}`;
     };
-  
-    const metricsToShow = {
-        'totalRevenue': 'Total Revenue',
-        'grossProfit': 'Gross Profit',
-        'netIncome': 'Net Income'
-    };
+
+    const sections: {
+        title: string;
+        metrics: Record<string, string>;
+        data: any[];
+        formatter?: (val: any) => string;
+    }[] = [
+        {
+            title: 'Income Statement',
+            metrics: {
+                'totalRevenue': 'Total Revenue',
+                'grossProfit': 'Gross Profit',
+                'netIncome': 'Net Income'
+            },
+            data: incomeReports
+        },
+        {
+            title: 'Balance Sheet',
+            metrics: {
+                'totalCurrentAssets': 'Total Current Assets',
+                'totalCurrentLiabilities': 'Total Current Liabilities',
+                'totalLiabilities': 'Total Liabilities',
+                'shortLongTermDebtTotal': 'Total Debt'
+            },
+            data: balanceReports
+        }
+    ];
+
+    // For Share Stats, we need to match dates from shareData array to the columns (reports dates)
+    // We create a "virtual" report list for shares
+    const matchedShareReports = incomeReports.map(report => {
+        const rDate = report.fiscalDateEnding;
+        // Find exact or closest share date. For simplicity, exact match or closest in past 3 months?
+        // Let's look for exact match first
+        let s = shareData.find(d => d.date === rDate);
+        if (!s && reportType === 'quarterly') {
+             // Try to find closest entry within 5 days (sometimes off by few days)
+             const targetTime = new Date(rDate).getTime();
+             s = shareData.find(d => {
+                 const t = new Date(d.date).getTime();
+                 return Math.abs(targetTime - t) < 5 * 24 * 60 * 60 * 1000;
+             });
+        }
+        // For annual, maybe just find the entry closest to year end
+        if (!s && reportType === 'annual') {
+             s = shareData.find(d => d.date === rDate);
+        }
+        
+        return {
+            fiscalDateEnding: rDate,
+            ...s
+        };
+    });
+    
+    sections.push({
+        title: 'Share Statistics',
+        metrics: {
+            'shares_outstanding_basic': 'Shares Outstanding (Basic)',
+            'shares_outstanding_diluted': 'Shares Outstanding (Diluted)'
+        },
+        data: matchedShareReports,
+        formatter: formatLargeNumber
+    });
 
     const reportsToShow = reportType === 'annual' ? 5 : 6;
-    const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, reportsToShow) || [];
+    const dates = incomeReports.slice(0, reportsToShow).map(r => r.fiscalDateEnding);
   
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
             <div className="flex justify-between items-center mb-5">
                 <h3 className="font-medium text-gray-700">
-                    Income Statement
+                    Financials
                 </h3>
                 
                 <div className="flex bg-gray-200/80 rounded-lg p-1">
@@ -1331,53 +1403,80 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                 </div>
           </div>
 
-          {reports.length > 0 ? (
+          {dates.length > 0 ? (
             <>
-                {/* Desktop Table View */}
                 <div className="overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-gray-600">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-100">
                         <tr>
-                        <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
-                        {reports.map(report => (
-                            <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
-                            {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : formatQuarter(report.fiscalDateEnding)}
+                        <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10 w-1/3">Metric</th>
+                        {dates.map(date => (
+                            <th scope="col" className="px-4 py-3 text-right" key={date}>
+                            {reportType === 'annual' ? new Date(date).getFullYear() : formatQuarter(date)}
                             </th>
                         ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {Object.entries(metricsToShow).map(([key, displayName]) => (
-                        <tr className="bg-white border-b hover:bg-gray-50" key={key}>
-                            <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
-                            {displayName}
-                            </th>
-                            {reports.map((report) => (
-                                <td className="px-4 py-3 text-right align-top" key={`${report.fiscalDateEnding}-${key}`}>
-                                    {formatValue(report[key])}
-                                </td>
-                            ))}
-                        </tr>
+                        {sections.map((section, sIdx) => (
+                            <React.Fragment key={section.title}>
+                                {/* Section Header */}
+                                <tr className="bg-gray-50 border-b">
+                                    <td colSpan={dates.length + 1} className="px-4 py-2 font-bold text-gray-800 sticky left-0 z-10 bg-gray-50">
+                                        {section.title}
+                                    </td>
+                                </tr>
+                                {/* Metrics */}
+                                {Object.entries(section.metrics).map(([key, displayName]) => (
+                                <tr className="bg-white border-b hover:bg-gray-50" key={key}>
+                                    <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top pl-8">
+                                    {displayName}
+                                    </th>
+                                    {dates.map((date, idx) => {
+                                        const report = section.data[idx];
+                                        // The section.data array might be sparse or not aligned if logic failed, but here we sliced logic above based on index matching
+                                        // Actually better to lookup by date to be safe if arrays drifted, but assuming slice alignment is standard
+                                        const val = report ? report[key] : null;
+                                        return (
+                                            <td className="px-4 py-3 text-right align-top" key={`${date}-${key}`}>
+                                                {section.formatter ? section.formatter(val) : formatValue(val)}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                                ))}
+                            </React.Fragment>
                         ))}
                     </tbody>
                     </table>
                 </div>
 
                 {/* Mobile Card View */}
-                <div className="block md:hidden space-y-4">
-                    {reports.map(report => (
-                        <div key={report.fiscalDateEnding} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                <div className="block md:hidden space-y-6">
+                    {dates.map((date, idx) => (
+                        <div key={date} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
                             <h4 className="font-semibold text-base text-gray-800 mb-3 pb-2 border-b border-gray-200">
-                                {reportType === 'annual' ? `Year ${new Date(report.fiscalDateEnding).getFullYear()}` : formatQuarter(report.fiscalDateEnding)}
+                                {reportType === 'annual' ? `Year ${new Date(date).getFullYear()}` : formatQuarter(date)}
                             </h4>
-                            <dl className="space-y-2 text-sm">
-                                {Object.entries(metricsToShow).map(([key, displayName]) => (
-                                    <div key={key} className="flex justify-between items-center">
-                                        <dt className="text-gray-600">{displayName}</dt>
-                                        <dd className="font-medium text-gray-900 text-right">{formatValue(report[key])}</dd>
-                                    </div>
-                                ))}
-                            </dl>
+                            {sections.map(section => (
+                                <div key={section.title} className="mb-4 last:mb-0">
+                                    <h5 className="text-xs font-bold text-gray-500 uppercase mb-2">{section.title}</h5>
+                                    <dl className="space-y-2 text-sm">
+                                        {Object.entries(section.metrics).map(([key, displayName]) => {
+                                            const report = section.data[idx];
+                                            const val = report ? report[key] : null;
+                                            return (
+                                                <div key={key} className="flex justify-between items-center">
+                                                    <dt className="text-gray-600">{displayName}</dt>
+                                                    <dd className="font-medium text-gray-900 text-right">
+                                                        {section.formatter ? section.formatter(val) : formatValue(val)}
+                                                    </dd>
+                                                </div>
+                                            );
+                                        })}
+                                    </dl>
+                                </div>
+                            ))}
                         </div>
                     ))}
                 </div>
