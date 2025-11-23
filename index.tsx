@@ -600,7 +600,7 @@ const SuccessDisplay = ({
                     ) : (
                         <>
                             <img 
-                                src="https://icon-library.com/images/overview-icon/overview-icon-7.jpg" 
+                                src="https://cdn-icons-png.flaticon.com/128/8016/8016700.png" 
                                 alt="" 
                                 className="w-4 h-4 object-contain" 
                             />
@@ -764,11 +764,13 @@ const CompanyOverviewDisplay = ({ data }) => {
   const targetPrice = data.AnalystTargetPrice;
 
   let upside = null;
+  let priceDiff = null;
   if (currentPrice && targetPrice && targetPrice !== 'None' && currentPrice !== 'None') {
       const c = parseFloat(currentPrice);
       const t = parseFloat(targetPrice);
       if (!isNaN(c) && !isNaN(t) && c !== 0) {
           upside = ((t - c) / c) * 100;
+          priceDiff = t - c;
       }
   }
   
@@ -863,8 +865,6 @@ const CompanyOverviewDisplay = ({ data }) => {
              </h3>
              <dl className="grid grid-cols-2 gap-y-2 text-sm">
                 <dt className="text-gray-500">Revenue</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.RevenueTTM)}</dd>
-                <dt className="text-gray-500">Rev. Growth (YOY)</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.QuarterlyRevenueGrowthYOY)}</dd>
-                <dt className="text-gray-500">Gross Profit</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.GrossProfitTTM)}</dd>
                 <dt className="text-gray-500">Net Income (EPS)</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data.DilutedEPSTTM)}</dd>
                 <dt className="text-gray-500">Profit Margin</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.ProfitMargin)}</dd>
                 <dt className="text-gray-500">Operating Margin</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.OperatingMarginTTM)}</dd>
@@ -915,7 +915,7 @@ const CompanyOverviewDisplay = ({ data }) => {
                     </div>
                     {upside !== null && (
                          <div className={`font-bold ${upside >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                             {upside >= 0 ? 'Upside' : 'Downside'}: {upside.toFixed(2)}%
+                             {upside >= 0 ? 'Upside' : 'Downside'}: {upside.toFixed(2)}% ({priceDiff >= 0 ? '+' : ''}{formatNumber(priceDiff)})
                          </div>
                     )}
                 </div>
