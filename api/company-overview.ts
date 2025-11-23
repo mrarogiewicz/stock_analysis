@@ -56,6 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const overviewUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}`;
     const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}`;
+    const insiderUrl = `https://www.alphavantage.co/query?function=INSIDER_TRANSACTIONS&symbol=${ticker}`;
 
     // Fetch Overview
     const overviewData = await fetchWithRetry(overviewUrl, keys);
@@ -70,10 +71,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Fetch Current Price
     const quoteData = await fetchWithRetry(quoteUrl, keys);
 
+    // Fetch Insider Transactions
+    const insiderData = await fetchWithRetry(insiderUrl, keys);
+
     // Merge results
     const result = {
         ...overviewData,
-        ...quoteData
+        ...quoteData,
+        insiderTransactions: insiderData
     };
 
     return res.status(200).json(result);

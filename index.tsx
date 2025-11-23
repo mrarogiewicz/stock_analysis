@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -806,6 +807,39 @@ const CompanyOverviewDisplay = ({ data }) => {
       return isNaN(n) ? num : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  // Calculate Insider Sentiment
+  let insiderSummary = 'N/A';
+  let insiderColor = 'text-gray-900';
+  
+  if (data.insiderTransactions && data.insiderTransactions.data) {
+      let netValue = 0;
+      data.insiderTransactions.data.forEach(t => {
+          const shares = parseFloat(t.shares);
+          const price = parseFloat(t.share_price);
+          if (!isNaN(shares) && !isNaN(price)) {
+              const val = shares * price;
+              if (t.acquisition_or_disposal === 'A') netValue += val;
+              if (t.acquisition_or_disposal === 'D') netValue -= val;
+          }
+      });
+      
+      const absVal = Math.abs(netValue);
+      let valStr = '';
+      if (absVal >= 1.0e+9) valStr = '$' + (absVal / 1.0e+9).toFixed(2) + "B";
+      else if (absVal >= 1.0e+6) valStr = '$' + (absVal / 1.0e+6).toFixed(2) + "M";
+      else valStr = formatCurrency(absVal);
+
+      if (netValue > 0) {
+          insiderSummary = `Buy ${valStr}`;
+          insiderColor = 'text-green-600';
+      } else if (netValue < 0) {
+          insiderSummary = `Sell ${valStr}`;
+          insiderColor = 'text-red-600';
+      } else if (netValue === 0 && data.insiderTransactions.data.length > 0) {
+          insiderSummary = 'Neutral';
+      }
+  }
+
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
        {/* Header: Basic Info */}
@@ -881,6 +915,7 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <dt className="text-gray-500">Float Shares</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesFloat)}</dd>
                 <dt className="text-gray-500">% Insiders</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInsiders ? parseFloat(data.PercentInsiders).toFixed(2) + '%' : 'N/A'}</dd>
                 <dt className="text-gray-500">% Institutions</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInstitutions ? parseFloat(data.PercentInstitutions).toFixed(2) + '%' : 'N/A'}</dd>
+                <dt className="text-gray-500">Net Insider Activity</dt> <dd className={`text-right font-medium ${insiderColor}`}>{insiderSummary}</dd>
              </dl>
           </div>
           
@@ -894,7 +929,6 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <dt className="text-gray-500">50 Day MA</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['50DayMovingAverage'])}</dd>
                 <dt className="text-gray-500">200 Day MA</dt> <dd className="text-right font-medium text-gray-900">{formatCurrency(data['200DayMovingAverage'])}</dd>
                 <dt className="text-gray-500">Dividends (Yield/Share)</dt> <dd className="text-right font-medium text-gray-900">{formatPercent(data.DividendYield)} / {formatCurrency(data.DividendPerShare)}</dd>
-                <dt className="text-gray-500">Ex-Dividend Date</dt> <dd className="text-right font-medium text-gray-900">{data.ExDividendDate !== 'None' ? data.ExDividendDate : 'N/A'}</dd>
              </dl>
           </div>
 
