@@ -206,7 +206,7 @@ const useStockAnalysisGenerator = () => {
         const data = await res.json();
         
         if (!res.ok) {
-            throw new Error(data.error || 'Failed to fetch financial data.');
+            throw new Error(data.error || 'Failed to fetch income statement.');
         }
 
         setIncomeStatement(data);
@@ -685,7 +685,7 @@ const SuccessDisplay = ({
     isGeneratingWithGemini,
     onFetchStockChart,
     isFetchingChart,
-    onFetchTranscript,
+    onFetchTranscript, // Keep prop but we use it inside Overview now
     isFetchingTranscript,
     isGeneratingSummary,
     transcriptSummary
@@ -772,11 +772,11 @@ const SuccessDisplay = ({
                     ) : (
                         <>
                             <img 
-                                src="https://cdn-icons-png.flaticon.com/128/3076/3076626.png" 
+                                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8LzpNbop14ZIV69sK22MLFRAqkzB0L_bG-g&s" 
                                 alt="" 
                                 className="w-4 h-4 object-contain" 
                             />
-                            <span>Financials</span>
+                            <span>Income Statement</span>
                         </>
                     )}
                 </button>
@@ -1230,16 +1230,9 @@ const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summa
 
 const IncomeStatementDisplay = ({ data, ticker }) => {
     const [reportType, setReportType] = useState('annual'); // 'annual' or 'quarterly'
-    const [showEstimates, setShowEstimates] = useState(true);
 
-    // Extract sub-datasets
-    const incomeData = data.income;
-    const balanceData = data.balance;
-    const sharesData = data.shares;
-    const earningsData = data.estimates;
-
-    const hasAnnualData = incomeData?.annualReports?.length > 0;
-    const hasQuarterlyData = incomeData?.quarterlyReports?.length > 0;
+    const hasAnnualData = data?.annualReports?.length > 0;
+    const hasQuarterlyData = data?.quarterlyReports?.length > 0;
 
     // Default to annual if it exists, otherwise quarterly.
     React.useEffect(() => {
@@ -1250,11 +1243,11 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         }
     }, [hasAnnualData, hasQuarterlyData]);
 
-    if (!incomeData || (!hasAnnualData && !hasQuarterlyData)) {
-        if (!incomeData) return null;
+    if (!data || (!hasAnnualData && !hasQuarterlyData)) {
+        if (!data) return null; // Don't show anything if data object doesn't exist yet
         return (
             <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6 text-center text-gray-600">
-                Financial data not available for {ticker}.
+                Income statement data not available for {ticker}.
             </div>
         );
     }
@@ -1288,282 +1281,612 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
 
     const formatQuarter = (dateString) => {
         const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString; 
+        if (isNaN(date.getTime())) return dateString; // Fallback for invalid dates
         const year = date.getFullYear();
         const month = date.getMonth(); // 0-11
         const quarter = Math.floor(month / 3) + 1;
         return `${year}Q${quarter}`;
     };
   
-    const incomeMetrics = {
+    const metricsToShow = {
         'totalRevenue': 'Total Revenue',
         'grossProfit': 'Gross Profit',
         'netIncome': 'Net Income'
     };
-    
-    const balanceMetrics = {
-        'totalCurrentAssets': 'Total Current Assets',
-        'totalCurrentLiabilities': 'Total Current Liabilities',
-        'totalLiabilities': 'Total Liabilities',
-        'shortLongTermDebtTotal': 'Debt Total' // using shortLongTermDebtTotal as Total Debt
-    };
-
-    const sharesMetrics = {
-        'shares_outstanding_basic': 'Basic',
-        'shares_outstanding_diluted': 'Diluted'
-    };
 
     const reportsToShow = reportType === 'annual' ? 5 : 6;
-    const incomeReports = (reportType === 'annual' ? incomeData.annualReports : incomeData.quarterlyReports)?.slice(0, reportsToShow) || [];
-    const balanceReports = balanceData ? ((reportType === 'annual' ? balanceData.annualReports : balanceData.quarterlyReports) || []) : [];
-    
-    // For shares, we need to map the quarterly data points to the column dates
-    const sharesList = sharesData?.data || [];
-    
-    // Future estimates logic
-    const futureEstimates = useMemo(() => {
-        if (!showEstimates || !earningsData || !earningsData.estimates) return [];
-        
-        const estimates = earningsData.estimates;
-        const horizonFilter = reportType === 'annual' ? 'fiscal year' : 'fiscal quarter';
-        
-        // Filter for "next" horizon estimates matching the view type
-        const nextEstimates = estimates.filter(est => 
-            est.horizon && 
-            est.horizon.includes('next') && 
-            est.horizon.includes(horizonFilter)
-        );
-
-        return nextEstimates.map(est => ({
-            fiscalDateEnding: est.date, // Estimate date
-            estimatedRevenue: est.revenue_estimate_high,
-            estimatedEPS: est.eps_estimate_average,
-            isEstimate: true
-        })).sort((a, b) => new Date(a.fiscalDateEnding).getTime() - new Date(b.fiscalDateEnding).getTime()); // sort ascending for display (though usually only 1 or 2)
-        
-    }, [earningsData, reportType, showEstimates]);
-    
-    // Merge historical reports with future estimates for display
-    // Note: Estimates only have Revenue/EPS, so Balance/Shares will be empty for them
-    const displayedReports = [...futureEstimates.reverse(), ...incomeReports];
-
-    // Helper to find corresponding report in other datasets
-    const findReport = (dataset, dateStr) => {
-        return dataset.find(r => r.fiscalDateEnding === dateStr);
-    };
-
-    // Helper to find closest shares data
-    const findShares = (dateStr) => {
-        if (!sharesList.length) return null;
-        // Ideally exact match, but shares might be reported on slightly different days.
-        // For simplicity, find exact match on date string or very close.
-        // Actually, SHARES_OUTSTANDING returns quarterly points.
-        // For annual columns, we usually want the Q4 point of that year.
-        const targetDate = new Date(dateStr);
-        // Try to find exact match
-        const exact = sharesList.find(s => s.date === dateStr);
-        if (exact) return exact;
-        
-        // Fallback: find closest date within 3 months?
-        // Since shares are quarterly, let's just use exact match or skip.
-        return null;
-    };
-
+    const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, reportsToShow) || [];
+  
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
             <div className="flex justify-between items-center mb-5">
                 <h3 className="font-medium text-gray-700">
-                    Financials
+                    Income Statement
                 </h3>
                 
-                <div className="flex gap-4 items-center">
-                    <label className="flex items-center cursor-pointer text-xs text-gray-600">
-                        <div className="relative">
-                            <input 
-                                type="checkbox" 
-                                className="sr-only" 
-                                checked={showEstimates} 
-                                onChange={() => setShowEstimates(!showEstimates)}
-                            />
-                            <div className={`block w-8 h-5 rounded-full ${showEstimates ? 'bg-green-400' : 'bg-gray-300'}`}></div>
-                            <div className={`dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition ${showEstimates ? 'transform translate-x-3' : ''}`}></div>
-                        </div>
-                        <span className="ml-2">Estimates</span>
-                    </label>
-
-                    <div className="flex bg-gray-200/80 rounded-lg p-1">
-                        <button
-                            type="button"
-                            onClick={() => setReportType('annual')}
-                            disabled={!hasAnnualData}
-                            aria-pressed={reportType === 'annual'}
-                            className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                            reportType === 'annual' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-                            }`}
-                        >
-                            Annual
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setReportType('quarterly')}
-                            disabled={!hasQuarterlyData}
-                            aria-pressed={reportType === 'quarterly'}
-                            className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                            reportType === 'quarterly' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-                            }`}
-                        >
-                            Quarterly
-                        </button>
-                    </div>
+                <div className="flex bg-gray-200/80 rounded-lg p-1">
+                    <button
+                        type="button"
+                        onClick={() => setReportType('annual')}
+                        disabled={!hasAnnualData}
+                        aria-pressed={reportType === 'annual'}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                        reportType === 'annual' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+                        }`}
+                    >
+                        Annual
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setReportType('quarterly')}
+                        disabled={!hasQuarterlyData}
+                        aria-pressed={reportType === 'quarterly'}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                        reportType === 'quarterly' ? 'bg-white text-gray-800 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+                        }`}
+                    >
+                        Quarterly
+                    </button>
                 </div>
           </div>
 
-          {displayedReports.length > 0 ? (
+          {reports.length > 0 ? (
             <>
+                {/* Desktop Table View */}
                 <div className="overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-gray-600">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-100">
                         <tr>
                         <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
-                        {displayedReports.map((report, idx) => (
-                            <th scope="col" className={`px-4 py-3 text-right ${report.isEstimate ? 'text-[#38B6FF] italic' : ''}`} key={idx}>
+                        {reports.map(report => (
+                            <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
                             {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : formatQuarter(report.fiscalDateEnding)}
-                            {report.isEstimate && '*'}
                             </th>
                         ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {/* Income Statement Section */}
-                        <tr className="bg-gray-50 border-b"><td colSpan={displayedReports.length + 1} className="px-4 py-2 font-bold text-gray-800">Income Statement</td></tr>
-                        {Object.entries(incomeMetrics).map(([key, displayName]) => (
+                        {Object.entries(metricsToShow).map(([key, displayName]) => (
                         <tr className="bg-white border-b hover:bg-gray-50" key={key}>
                             <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
                             {displayName}
                             </th>
-                            {displayedReports.map((report, idx) => (
-                                <td className={`px-4 py-3 text-right align-top ${report.isEstimate ? 'text-[#38B6FF] italic' : ''}`} key={idx}>
-                                    {report.isEstimate && key === 'totalRevenue' ? formatValue(report.estimatedRevenue) : formatValue(report[key])}
+                            {reports.map((report) => (
+                                <td className="px-4 py-3 text-right align-top" key={`${report.fiscalDateEnding}-${key}`}>
+                                    {formatValue(report[key])}
                                 </td>
                             ))}
-                        </tr>
-                        ))}
-                        {/* Special EPS Row to combine Reported and Estimated */}
-                        <tr className="bg-white border-b hover:bg-gray-50">
-                            <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
-                                EPS
-                            </th>
-                             {displayedReports.map((report, idx) => (
-                                <td className={`px-4 py-3 text-right align-top ${report.isEstimate ? 'text-[#38B6FF] italic' : ''}`} key={idx}>
-                                    {report.isEstimate 
-                                        ? formatValue(report.estimatedEPS) 
-                                        : formatValue(report['reportedEPS'] || (report.netIncome / report.commonStockSharesOutstanding))} {/* Fallback calculation if not present directly, usually DilutedEPS is better key if available */}
-                                </td>
-                            ))}
-                        </tr>
-
-                        {/* Balance Sheet Section */}
-                        <tr className="bg-gray-50 border-b"><td colSpan={displayedReports.length + 1} className="px-4 py-2 font-bold text-gray-800">Balance Sheet</td></tr>
-                        {Object.entries(balanceMetrics).map(([key, displayName]) => (
-                        <tr className="bg-white border-b hover:bg-gray-50" key={key}>
-                            <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
-                            {displayName}
-                            </th>
-                            {displayedReports.map((report, idx) => {
-                                if (report.isEstimate) return <td key={idx} className="px-4 py-3 text-right">-</td>;
-                                const balanceReport = findReport(balanceReports, report.fiscalDateEnding);
-                                return (
-                                    <td className="px-4 py-3 text-right align-top" key={idx}>
-                                        {balanceReport ? formatValue(balanceReport[key]) : '-'}
-                                    </td>
-                                );
-                            })}
-                        </tr>
-                        ))}
-
-                        {/* Shares Outstanding Section */}
-                        <tr className="bg-gray-50 border-b"><td colSpan={displayedReports.length + 1} className="px-4 py-2 font-bold text-gray-800">Shares Outstanding</td></tr>
-                        {Object.entries(sharesMetrics).map(([key, displayName]) => (
-                        <tr className="bg-white border-b hover:bg-gray-50" key={key}>
-                            <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
-                            {displayName}
-                            </th>
-                            {displayedReports.map((report, idx) => {
-                                if (report.isEstimate) return <td key={idx} className="px-4 py-3 text-right">-</td>;
-                                const sharesItem = findShares(report.fiscalDateEnding);
-                                return (
-                                    <td className="px-4 py-3 text-right align-top" key={idx}>
-                                        {sharesItem ? formatValue(sharesItem[key]) : '-'}
-                                    </td>
-                                );
-                            })}
                         </tr>
                         ))}
                     </tbody>
                     </table>
                 </div>
 
-                {/* Mobile Card View (Simplified) */}
+                {/* Mobile Card View */}
                 <div className="block md:hidden space-y-4">
-                    {displayedReports.map((report, idx) => (
-                        <div key={idx} className={`bg-white rounded-lg border border-gray-200 shadow-sm p-4 ${report.isEstimate ? 'border-[#38B6FF]' : ''}`}>
+                    {reports.map(report => (
+                        <div key={report.fiscalDateEnding} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
                             <h4 className="font-semibold text-base text-gray-800 mb-3 pb-2 border-b border-gray-200">
                                 {reportType === 'annual' ? `Year ${new Date(report.fiscalDateEnding).getFullYear()}` : formatQuarter(report.fiscalDateEnding)}
-                                {report.isEstimate && ' (Est.)'}
                             </h4>
-                            {/* Income */}
-                            <h5 className="font-bold text-xs text-gray-500 uppercase mt-2 mb-1">Income</h5>
-                            <dl className="space-y-1 text-sm">
-                                {Object.entries(incomeMetrics).map(([key, displayName]) => (
+                            <dl className="space-y-2 text-sm">
+                                {Object.entries(metricsToShow).map(([key, displayName]) => (
                                     <div key={key} className="flex justify-between items-center">
                                         <dt className="text-gray-600">{displayName}</dt>
-                                        <dd className={`font-medium text-right ${report.isEstimate ? 'text-[#38B6FF]' : 'text-gray-900'}`}>
-                                            {report.isEstimate && key === 'totalRevenue' ? formatValue(report.estimatedRevenue) : formatValue(report[key])}
-                                        </dd>
+                                        <dd className="font-medium text-gray-900 text-right">{formatValue(report[key])}</dd>
                                     </div>
                                 ))}
                             </dl>
-                            
-                            {!report.isEstimate && (
-                            <>
-                                {/* Balance */}
-                                <h5 className="font-bold text-xs text-gray-500 uppercase mt-4 mb-1">Balance</h5>
-                                <dl className="space-y-1 text-sm">
-                                    {Object.entries(balanceMetrics).map(([key, displayName]) => {
-                                        const bReport = findReport(balanceReports, report.fiscalDateEnding);
-                                        return (
-                                            <div key={key} className="flex justify-between items-center">
-                                                <dt className="text-gray-600">{displayName}</dt>
-                                                <dd className="font-medium text-gray-900 text-right">{bReport ? formatValue(bReport[key]) : '-'}</dd>
-                                            </div>
-                                        );
-                                    })}
-                                </dl>
-                                
-                                {/* Shares */}
-                                <h5 className="font-bold text-xs text-gray-500 uppercase mt-4 mb-1">Shares</h5>
-                                <dl className="space-y-1 text-sm">
-                                    {Object.entries(sharesMetrics).map(([key, displayName]) => {
-                                        const sReport = findShares(report.fiscalDateEnding);
-                                        return (
-                                            <div key={key} className="flex justify-between items-center">
-                                                <dt className="text-gray-600">{displayName}</dt>
-                                                <dd className="font-medium text-gray-900 text-right">{sReport ? formatValue(sReport[key]) : '-'}</dd>
-                                            </div>
-                                        );
-                                    })}
-                                </dl>
-                            </>
-                            )}
                         </div>
                     ))}
                 </div>
             </>
           ) : (
-            <p className="text-center text-gray-500 mt-4">No data available.</p>
+            <p className="text-center text-gray-500 mt-4">No {reportType} data available.</p>
           )}
         </div>
       </div>
     );
 };
+
+const CustomTooltip = ({ active, payload, label, range }: any) => {
+  if (active && payload && payload.length) {
+    // Format the timestamp back to a readable string for the tooltip
+    const date = new Date(label); // label is the timestamp number
+    let dateStr = '';
+    
+    if (range === '1D' || range === '1W') {
+        dateStr = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } else {
+        dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    return (
+      <div className="bg-white/95 border border-gray-200 shadow-lg p-3 rounded text-xs">
+        <p className="font-bold text-gray-700 mb-1">{dateStr}</p>
+        {payload.map((entry, index) => (
+            <p key={index} style={{ color: entry.color }}>
+                {entry.name}: {
+                    entry.name === 'Volume' 
+                    ? (entry.value / 1000000).toFixed(2) + 'M' 
+                    : '$' + Number(entry.value).toFixed(2)
+                }
+            </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) => {
+    const [parsingError, setParsingError] = useState(null);
+
+    // Transform data based on range and available datasets
+    const chartData = useMemo(() => {
+        if (!data) return [];
+        setParsingError(null);
+        
+        let timeSeries = null;
+        let type = '';
+
+        // Pick the correct dataset from the composite object based on the current range
+        if (range === '1D') {
+             if (data.intraday?.error) {
+                 setParsingError(data.intraday.error);
+                 return [];
+             }
+             timeSeries = data.intraday ? data.intraday['Time Series (15min)'] : null;
+             type = '15min';
+        } else if (range === '1W') {
+             // 1W now uses intraday30 with specific params
+             if (data.intraday30?.error) {
+                 setParsingError(data.intraday30.error);
+                 return [];
+             }
+             timeSeries = data.intraday30 ? data.intraday30['Time Series (30min)'] : null;
+             type = '30min';
+        } else if (range === '1M' || range === '3M') {
+             if (data.daily?.error) {
+                 setParsingError(data.daily.error);
+                 return [];
+             }
+             timeSeries = data.daily ? data.daily['Time Series (Daily)'] : null;
+             type = 'Daily';
+        } else if (range === '1Y' || range === 'YTD') {
+             if (data.weekly?.error) {
+                 setParsingError(data.weekly.error);
+                 return [];
+             }
+             timeSeries = data.weekly ? data.weekly['Weekly Time Series'] : null;
+             type = 'Weekly';
+        } else if (range === '5Y' || range === 'All') {
+             if (data.monthly?.error) {
+                 setParsingError(data.monthly.error);
+                 return [];
+             }
+             timeSeries = data.monthly ? data.monthly['Monthly Time Series'] : null;
+             type = 'Monthly';
+        }
+
+        // If the specific dataset is missing or has error, return empty
+        if (!timeSeries) return [];
+
+        return Object.keys(timeSeries).map(dateStr => {
+             // For intraday, parsing 'YYYY-MM-DD HH:MM:SS' works directly in Date()
+             // For daily/weekly/monthly, 'YYYY-MM-DD' works too.
+             // We create a timestamp for numeric axis sorting
+             const dateObj = new Date(dateStr);
+             return {
+                date: dateStr,
+                timestamp: dateObj.getTime(),
+                price: parseFloat(timeSeries[dateStr]['4. close']),
+                volume: parseInt(timeSeries[dateStr]['5. volume']),
+                type
+            };
+        }).sort((a, b) => a.timestamp - b.timestamp);
+    }, [data, range]);
+
+    // Filter data based on range
+    const filteredData = useMemo(() => {
+        if (chartData.length === 0) return [];
+
+        // For 'All', return everything
+        if (range === 'All') return chartData;
+        
+        const lastItem = chartData[chartData.length - 1];
+        const lastDate = new Date(lastItem.timestamp);
+        let startDate = new Date(lastDate);
+
+        if (range === '1D') {
+             // Show only the last available date (last trading day)
+             // We filter by checking if year, month, and day match the last available point.
+             const targetDay = lastDate.getDate();
+             const targetMonth = lastDate.getMonth();
+             const targetYear = lastDate.getFullYear();
+             
+             return chartData.filter(item => {
+                 const d = new Date(item.timestamp);
+                 return d.getDate() === targetDay && 
+                        d.getMonth() === targetMonth && 
+                        d.getFullYear() === targetYear;
+             });
+        }
+
+        if (range === '1M') {
+            startDate.setMonth(lastDate.getMonth() - 1);
+        } else if (range === '3M') {
+             startDate.setMonth(lastDate.getMonth() - 3);
+        } else if (range === '1Y') {
+            startDate.setFullYear(lastDate.getFullYear() - 1);
+        } else if (range === 'YTD') {
+            startDate = new Date(lastDate.getFullYear(), 0, 1);
+        } else if (range === '5Y') {
+            startDate.setFullYear(lastDate.getFullYear() - 5);
+        } else {
+            // For 1W (Intraday), we usually just show what's returned by compact (approx 100 points)
+            return chartData;
+        }
+
+        // Filter by date
+        const startTime = startDate.getTime();
+        return chartData.filter(item => item.timestamp >= startTime);
+    }, [chartData, range]);
+
+    const dateRangeText = useMemo(() => {
+        if (filteredData.length === 0) return '';
+        const start = new Date(filteredData[0].timestamp);
+        const end = new Date(filteredData[filteredData.length - 1].timestamp);
+        const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        
+        // Include time if it's intraday 1D. For 1W we removed it per request.
+        if (range === '1D') {
+             return `${start.toLocaleString('en-US', { ...opts, hour: '2-digit', minute: '2-digit'})} - ${end.toLocaleString('en-US', { ...opts, hour: '2-digit', minute: '2-digit'})}`;
+        }
+
+        return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}`;
+    }, [filteredData, range]);
+    
+    const priceChangeInfo = useMemo(() => {
+        if (!filteredData || filteredData.length === 0) return null;
+        const first = filteredData[0];
+        const last = filteredData[filteredData.length - 1];
+        
+        const change = last.price - first.price;
+        const percent = (change / first.price) * 100;
+        
+        return {
+            change,
+            percent,
+            isPositive: change >= 0
+        };
+    }, [filteredData]);
+
+
+    if (!data) return null;
+
+    // Check for missing data or errors
+    if ((filteredData.length === 0 && !isFetching) || parsingError) {
+         return (
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg p-6 text-center break-words">
+                <p className="text-gray-600 font-semibold">No data available for range {range}.</p>
+                {parsingError && <p className="text-red-500 text-xs mt-2">{parsingError}</p>}
+                
+                <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200 text-left">
+                     <p className="text-xs font-bold text-gray-500 mb-2">Debug Endpoint URLs (Click to test):</p>
+                     <ul className="space-y-1 text-[10px] text-blue-600">
+                         <li><strong>Intraday (1D):</strong> <a href={data.intraday?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.intraday?._debugUrl || 'N/A'}</a></li>
+                         <li><strong>Intraday (1W):</strong> <a href={data.intraday30?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.intraday30?._debugUrl || 'N/A'}</a></li>
+                         <li><strong>Daily (1M/3M):</strong> <a href={data.daily?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.daily?._debugUrl || 'N/A'}</a></li>
+                         <li><strong>Weekly (1Y/YTD):</strong> <a href={data.weekly?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.weekly?._debugUrl || 'N/A'}</a></li>
+                         <li><strong>Monthly (5Y/All):</strong> <a href={data.monthly?._debugUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{data.monthly?._debugUrl || 'N/A'}</a></li>
+                     </ul>
+                </div>
+            </div>
+         );
+    }
+
+    return (
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
+            <div className="flex justify-between items-start mb-4">
+                 <div>
+                    <h3 className="text-lg font-bold text-gray-800">Price & Volume - {ticker}</h3>
+                    <p className="text-xs text-gray-500 mt-1">{dateRangeText}</p>
+                    {priceChangeInfo && (
+                        <div className={`text-sm font-semibold mt-1 ${priceChangeInfo.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                            {priceChangeInfo.isPositive ? '+' : ''}{priceChangeInfo.change.toFixed(2)} ({priceChangeInfo.isPositive ? '+' : ''}{priceChangeInfo.percent.toFixed(2)}%)
+                        </div>
+                    )}
+                 </div>
+                 {isFetching && <Spinner className="w-5 h-5 text-[#38B6FF]" />}
+            </div>
+            
+            <div className="h-[300px] w-full">
+                {filteredData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={filteredData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                            <defs>
+                                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#38B6FF" stopOpacity={0.1}/>
+                                    <stop offset="95%" stopColor="#38B6FF" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis 
+                                dataKey="timestamp" 
+                                tick={{fontSize: 10, fill: '#6b7280'}} 
+                                tickFormatter={(unixTime) => {
+                                    const date = new Date(unixTime);
+                                    // If 1D (Intraday), show time
+                                    if (range === '1D') {
+                                         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    }
+                                    // If 1W, show Date only (e.g. Nov 21) per request
+                                    if (range === '1W') {
+                                         return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                    }
+                                    // Else show date
+                                    return date.toLocaleDateString(undefined, {
+                                        month:'short', 
+                                        day:'numeric', 
+                                        year: range === '5Y' || range === 'All' ? '2-digit' : undefined
+                                    } as Intl.DateTimeFormatOptions);
+                                }}
+                                minTickGap={30}
+                            />
+                            {/* Hide Left YAxis visual elements but keep it for scaling */}
+                            <YAxis 
+                                yAxisId="left" 
+                                orientation="left" 
+                                width={0}
+                                tick={false}
+                                domain={[0, 'dataMax * 16']} // Make volume bars shorter
+                            />
+                            <YAxis 
+                                yAxisId="right" 
+                                orientation="right" 
+                                tick={{fontSize: 10, fill: '#6b7280'}} 
+                                domain={['auto', 'auto']}
+                                tickFormatter={(val) => `$${val}`}
+                            />
+                            <Tooltip content={<CustomTooltip range={range} />} />
+                            <Bar yAxisId="left" dataKey="volume" name="Volume" fill="#e5e7eb" barSize={20} isAnimationActive={false} />
+                            <Line 
+                                yAxisId="right" 
+                                type="monotone" 
+                                dataKey="price" 
+                                name="Price" 
+                                stroke="#38B6FF" 
+                                strokeWidth={2} 
+                                dot={false} 
+                                activeDot={{ r: 4 }}
+                                isAnimationActive={false}
+                            />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="flex h-full items-center justify-center text-gray-400 text-sm">
+                        No data for selected range
+                    </div>
+                )}
+            </div>
+
+            <div className="flex justify-center gap-2 mt-4 flex-wrap">
+                {['1D', '1W', '1M', '3M', 'YTD', '1Y', '5Y', 'All'].map((r) => (
+                    <button
+                        key={r}
+                        onClick={() => onRangeChange(r)}
+                        className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                            range === r 
+                            ? 'bg-[#38B6FF] text-white shadow-sm' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        {r}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// --- MAIN APP ---
+const App = () => {
+  const {
+    ticker,
+    setTicker,
+    displayType,
+    setDisplayType,
+    isLoading,
+    error,
+    generatedSimpleContent,
+    generatedDetailContent,
+    generateAnalysis,
+    generatedForTicker,
+    isSaving,
+    saveError,
+    saveSuccess,
+    saveAnalysis,
+    geminiResponse,
+    isGeneratingWithGemini,
+    geminiError,
+    generateWithGemini,
+    incomeStatement,
+    isFetchingIncomeStatement,
+    incomeStatementError,
+    fetchIncomeStatement,
+    companyOverview,
+    isFetchingOverview,
+    overviewError,
+    fetchCompanyOverview,
+    stockChartData,
+    isFetchingChart,
+    chartError,
+    fetchStockChart,
+    chartRange,
+    setRange,
+    
+    // Transcript Props
+    transcriptData,
+    isFetchingTranscript,
+    transcriptError,
+    transcriptSummary,
+    isGeneratingSummary,
+    summaryError,
+    fetchAndSummarizeTranscript,
+    
+    resultOrder,
+  } = useStockAnalysisGenerator();
+
+  const isTickerPresent = ticker.trim().length > 0;
+  const contentToDisplay = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
+  const hasContent = !!(contentToDisplay && !error);
+
+  const renderResultItem = (type) => {
+    switch (type) {
+      case 'overview':
+        if (!companyOverview && !overviewError) return null;
+        return (
+          <div key="overview">
+            {overviewError && <ErrorMessage message={overviewError} />}
+            {companyOverview && (
+                <CompanyOverviewDisplay 
+                    data={companyOverview} 
+                    onSummarize={fetchAndSummarizeTranscript}
+                    isSummarizing={isGeneratingSummary}
+                    transcriptSummary={transcriptSummary}
+                />
+            )}
+          </div>
+        );
+      case 'income':
+        if (!incomeStatement && !incomeStatementError) return null;
+        return (
+          <div key="income">
+            {incomeStatementError && <ErrorMessage message={incomeStatementError} />}
+            {incomeStatement && <IncomeStatementDisplay data={incomeStatement} ticker={generatedForTicker} />}
+          </div>
+        );
+      case 'chart':
+        if (!stockChartData && !chartError && !isFetchingChart) return null;
+        
+        if (chartError && !stockChartData) return <div key="chart"><ErrorMessage message={chartError} /></div>;
+        
+        return (
+          <div key="chart">
+             {chartError && <ErrorMessage message={chartError} />}
+             {(stockChartData || isFetchingChart) && (
+                 <StockChartDisplay 
+                    data={stockChartData} 
+                    ticker={generatedForTicker} 
+                    range={chartRange}
+                    onRangeChange={setRange}
+                    isFetching={isFetchingChart}
+                 />
+             )}
+          </div>
+        );
+      case 'transcript':
+        if (!transcriptData && !transcriptError && !isGeneratingSummary) return null;
+        return (
+            <div key="transcript">
+                {transcriptError && <ErrorMessage message={transcriptError} />}
+                {transcriptData && (
+                    <EarningsTranscriptDisplay 
+                        data={transcriptData} 
+                        ticker={generatedForTicker} 
+                        summary={transcriptSummary}
+                        isSummarizing={isGeneratingSummary}
+                        summaryError={summaryError}
+                    />
+                )}
+            </div>
+        );
+      case 'gemini':
+         if ((!geminiResponse && !geminiError)) return null;
+         return (
+          <div key="gemini">
+            {geminiError && <ErrorMessage message={geminiError} />}
+            <GeminiResponseDisplay content={geminiResponse} ticker={generatedForTicker} />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-[#f8f9fa] from-[#f8f9fa] via-[#e9ecef] to-[#f8f9fa] bg-gradient-to-br font-sans text-gray-800 flex flex-col">
+      <div className="container mx-auto px-2 py-8 flex flex-col flex-grow">
+        <Header isTickerPresent={isTickerPresent} generatedForTicker={generatedForTicker} />
+
+        <div className={`md:flex md:gap-8 flex-grow ${hasContent ? 'md:items-start' : 'md:items-center md:justify-center'}`}>
+          
+          {/* --- LEFT COLUMN --- */}
+          <div className={`md:w-fit md:flex-shrink-0 ${!hasContent ? 'max-w-md w-full' : ''}`}>
+            <div className={`mx-auto md:max-w-none md:mx-0 mb-8 ${hasContent ? 'max-w-md' : ''}`}>
+                <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
+                    <InputForm
+                        ticker={ticker}
+                        setTicker={setTicker}
+                        isLoading={isLoading}
+                        onSubmit={generateAnalysis}
+                        hasContent={hasContent}
+                        content={contentToDisplay}
+                    />
+                    <ErrorMessage message={error} />
+                </div>
+            </div>
+
+            {hasContent && (
+              <div className="mb-8 md:mb-0">
+                <SuccessDisplay 
+                  ticker={generatedForTicker}
+                  companyOverview={companyOverview}
+                  isSaving={isSaving}
+                  saveSuccess={saveSuccess}
+                  onSaveAnalysis={saveAnalysis}
+                  displayType={displayType}
+                  onDisplayTypeChange={setDisplayType}
+                  onFetchIncomeStatement={fetchIncomeStatement}
+                  isFetchingIncomeStatement={isFetchingIncomeStatement}
+                  onFetchOverview={fetchCompanyOverview}
+                  isFetchingOverview={isFetchingOverview}
+                  onGenerateWithGemini={generateWithGemini}
+                  isGeneratingWithGemini={isGeneratingWithGemini}
+                  onFetchStockChart={fetchStockChart}
+                  isFetchingChart={isFetchingChart}
+                  onFetchTranscript={fetchAndSummarizeTranscript} // Updated usage, though button removed in component
+                  isFetchingTranscript={isFetchingTranscript}
+                  isGeneratingSummary={isGeneratingSummary}
+                  transcriptSummary={transcriptSummary}
+                />
+                <ErrorMessage message={saveError} />
+              </div>
+            )}
+          </div>
+          
+          {/* --- RIGHT COLUMN --- */}
+          {hasContent && (
+            <div className="md:flex-1 min-w-0">
+              <div className="space-y-8">
+                {resultOrder.map(type => renderResultItem(type))}
+                <Preview content={contentToDisplay} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+};
+
+// --- RENDER ---
+const rootElement = document.getElementById('root');
+const root = createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
