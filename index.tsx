@@ -760,6 +760,7 @@ const CompanyOverviewDisplay = ({ data }) => {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [transcriptSummary, setTranscriptSummary] = useState(null);
   const [transcriptError, setTranscriptError] = useState(null);
+  const [transcriptDebugUrl, setTranscriptDebugUrl] = useState(null);
 
   if (!data) return null;
 
@@ -902,6 +903,7 @@ const CompanyOverviewDisplay = ({ data }) => {
      setIsSummarizing(true);
      setTranscriptError(null);
      setTranscriptSummary(null);
+     setTranscriptDebugUrl(null);
 
      try {
          const res = await fetch('/api/summarize-earnings', {
@@ -916,6 +918,9 @@ const CompanyOverviewDisplay = ({ data }) => {
          
          const resData = await res.json();
          if (!res.ok) {
+             if (resData.debugUrl) {
+                 setTranscriptDebugUrl(resData.debugUrl);
+             }
              throw new Error(resData.error || "Failed to fetch summary.");
          }
          
@@ -989,7 +994,16 @@ const CompanyOverviewDisplay = ({ data }) => {
                     Earnings Call Summary ({transcriptYear} Q{transcriptQuarter})
                   </h4>
                   {transcriptError ? (
-                      <p className="text-red-600">{transcriptError}</p>
+                      <div>
+                          <p className="text-red-600">{transcriptError}</p>
+                          {transcriptDebugUrl && (
+                             <div className="mt-2 text-xs">
+                                <a href={transcriptDebugUrl} target="_blank" rel="noopener noreferrer" className="text-red-500 underline hover:text-red-700">
+                                    Debug URL (Contains API Key)
+                                </a>
+                             </div>
+                          )}
+                      </div>
                   ) : (
                       <div className="prose prose-sm max-w-none text-gray-700">
                           <p>{transcriptSummary}</p>

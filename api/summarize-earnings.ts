@@ -6,9 +6,11 @@ import { GoogleGenAI } from '@google/genai';
 // Helper function to fetch a specific URL with key rotation (Reused logic)
 async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
     let lastData = null;
+    let lastUrl = "";
 
     for (const apiKey of keys) {
         const url = `${baseUrl}&apikey=${apiKey}`;
+        lastUrl = url;
 
         try {
             const response = await fetch(url);
@@ -35,16 +37,17 @@ async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
             // Check for specific error messages or empty content
             if (data["Error Message"]) {
                 console.error(`API Error with key ending ...${apiKey?.slice(-4)}: ${data["Error Message"]}`);
-                return { error: data["Error Message"] };
+                return { error: data["Error Message"], _debugUrl: url };
             }
             
             // Alpha Vantage transcript usually returns simply the symbol and content, or empty if not found
             if (!data.symbol && !data.content) {
-                 // Sometimes it returns just {} if no data
-                 continue; 
+                 // Sometimes it returns just {} if no data, or a message saying no data
+                 // We attach the url to the data object so the caller can debug
+                 return { ...data, _debugUrl: url };
             }
 
-            return data;
+            return { ...data, _debugUrl: url };
 
         } catch (error) {
             console.error(`Error with key ending ...${apiKey?.slice(-4)}:`, error);
@@ -55,10 +58,10 @@ async function fetchWithKeyRotation(baseUrl: string, keys: string[]) {
     // Exhausted all keys
     if (lastData && (lastData["Note"] || lastData["Information"])) {
         const msg = lastData["Note"] || lastData["Information"];
-        return { error: "API rate limit exceeded on all keys.", details: msg };
+        return { error: "API rate limit exceeded on all keys.", details: msg, _debugUrl: lastUrl };
     }
 
-    return { error: "Failed to fetch transcript data or data unavailable." };
+    return { error: "Failed to fetch transcript data or data unavailable.", _debugUrl: lastUrl };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -91,13 +94,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         // 2. Fetch Transcript
-        // Docs: function=EARNINGS_CALL_TRANSCRIPT&symbol=IBM&quarter=2025Q3&apikey=demo
-        // Wait, endpoint param is 'quarter=2025Q3' (string), not separate year/quarter numbers?
-        // Let's construct the string based on user input. User provided example "2025Q3".
-        // Alpha Vantage docs say: "quarter" (optional) "The earnings quarter to query... e.g. 2025Q1"
-        
-        // Ensure format YYYYQq
-        // We expect `year` (number/string) and `quarter` (number/string 1-4) from body
         const quarterParam = `${year}Q${quarter}`;
         
         const transcriptUrl = `https://www.alphavantage.co/query?function=EARNINGS_CALL_TRANSCRIPT&symbol=${ticker}&quarter=${quarterParam}`;
@@ -105,20 +101,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const transcriptData = await fetchWithKeyRotation(transcriptUrl, alphaKeys);
 
         if (transcriptData.error) {
-            return res.status(400).json({ error: transcriptData.error, details: transcriptData.details });
+            return res.status(400).json({ 
+                error: transcriptData.error, 
+                details: transcriptData.details,
+                debugUrl: transcriptData._debugUrl 
+            });
         }
         
         const content = transcriptData.content;
         
         if (!content) {
-            return res.status(404).json({ error: `No transcript found for ${ticker} ${quarterParam}` });
+            return res.status(404).json({ 
+                error: `No transcript found for ${ticker} ${quarterParam}`,
+                debugUrl: transcriptData._debugUrl
+            });
         }
 
         // 3. Summarize with Gemini
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        
-        // Truncate if excessively long to avoid token limits (though 2.5/3 models have large context)
-        // A typical transcript can be 5k-10k words. Safe to pass whole thing usually.
         
         const promptText = `
         You are a financial analyst. 
@@ -144,6 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     } catch (error) {
         console.error("Error in summarize-earnings:", error);
-        return res.status(500).json({ error: "Internal server error summarizing earnings." });
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return res.status(500).json({ error: "Internal server error summarizing earnings.", details: errorMessage });
     }
 }
