@@ -807,38 +807,92 @@ const CompanyOverviewDisplay = ({ data }) => {
       return isNaN(n) ? num : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Calculate Insider Sentiment
-  let insiderSummary = 'N/A';
-  let insiderColor = 'text-gray-900';
-  
+  // Determine start of Fiscal Year
+  const getFiscalYearStart = (fyEndStr) => {
+    if (!fyEndStr || fyEndStr === 'None') return new Date(new Date().setFullYear(new Date().getFullYear() - 1));
+    
+    const months = {
+        "january": 0, "february": 1, "march": 2, "april": 3, "may": 4, "june": 5,
+        "july": 6, "august": 7, "september": 8, "october": 9, "november": 10, "december": 11
+    };
+    
+    const fyEndMonth = months[fyEndStr.toLowerCase()];
+    if (fyEndMonth === undefined) return new Date(new Date().setFullYear(new Date().getFullYear() - 1));
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    
+    // If today is AFTER the FY end month, the FY started this year.
+    // Example: FY Ends Sept. Today is Nov 2025. Recent FY ended Sept 2025. FY Started Oct 2025? 
+    // Wait, usually if FY ends Sept 2025, that's FY 2025. New FY 2026 starts Oct 2025.
+    // If today is Aug 2025. Recent FY ends Sept 2025. FY Started Oct 2024.
+    
+    // Let's find the most recent fiscal year START.
+    // If current month > fyEndMonth, FY started this year (fyEndMonth + 1).
+    // If current month <= fyEndMonth, FY started last year (fyEndMonth + 1).
+    
+    const currentMonth = now.getMonth();
+    let fyStartYear = currentYear;
+    if (currentMonth <= fyEndMonth) {
+        fyStartYear = currentYear - 1;
+    }
+    return new Date(fyStartYear, fyEndMonth + 1, 1);
+  };
+
+  const fyStartDate = getFiscalYearStart(data.FiscalYearEnd);
+
+  // Calculate Insider Activity for Current FY
+  let insiderBuyShares = 0;
+  let insiderBuyValue = 0;
+  let insiderSellShares = 0;
+  let insiderSellValue = 0;
+  let ceoNetShares = 0;
+  let ceoNetValue = 0;
+
   if (data.insiderTransactions && data.insiderTransactions.data) {
-      let netValue = 0;
       data.insiderTransactions.data.forEach(t => {
-          const shares = parseFloat(t.shares);
-          const price = parseFloat(t.share_price);
-          if (!isNaN(shares) && !isNaN(price)) {
-              const val = shares * price;
-              if (t.acquisition_or_disposal === 'A') netValue += val;
-              if (t.acquisition_or_disposal === 'D') netValue -= val;
+          const tDate = new Date(t.transaction_date);
+          if (tDate >= fyStartDate) {
+              const shares = parseFloat(t.shares);
+              const price = parseFloat(t.share_price);
+              
+              if (!isNaN(shares) && !isNaN(price)) {
+                  const val = shares * price;
+                  const isAcquisition = t.acquisition_or_disposal === 'A';
+                  const isDisposal = t.acquisition_or_disposal === 'D';
+
+                  if (isAcquisition) {
+                      insiderBuyShares += shares;
+                      insiderBuyValue += val;
+                  } else if (isDisposal) {
+                      insiderSellShares += shares;
+                      insiderSellValue += val;
+                  }
+
+                  // CEO Logic
+                  if (t.executive_title && t.executive_title.toLowerCase().includes('ceo')) {
+                      if (isAcquisition) {
+                          ceoNetShares += shares;
+                          ceoNetValue += val;
+                      } else if (isDisposal) {
+                          ceoNetShares -= shares;
+                          ceoNetValue -= val;
+                      }
+                  }
+              }
           }
       });
-      
-      const absVal = Math.abs(netValue);
-      let valStr = '';
-      if (absVal >= 1.0e+9) valStr = '$' + (absVal / 1.0e+9).toFixed(2) + "B";
-      else if (absVal >= 1.0e+6) valStr = '$' + (absVal / 1.0e+6).toFixed(2) + "M";
-      else valStr = formatCurrency(absVal);
-
-      if (netValue > 0) {
-          insiderSummary = `Buy ${valStr}`;
-          insiderColor = 'text-green-600';
-      } else if (netValue < 0) {
-          insiderSummary = `Sell ${valStr}`;
-          insiderColor = 'text-red-600';
-      } else if (netValue === 0 && data.insiderTransactions.data.length > 0) {
-          insiderSummary = 'Neutral';
-      }
   }
+
+  const formatMoneyShort = (num) => {
+    const absVal = Math.abs(num);
+    if (absVal >= 1.0e+9) return '$' + (absVal / 1.0e+9).toFixed(2) + "B";
+    if (absVal >= 1.0e+6) return '$' + (absVal / 1.0e+6).toFixed(2) + "M";
+    if (absVal >= 1.0e+3) return '$' + (absVal / 1.0e+3).toFixed(0) + "K";
+    return '$' + absVal.toFixed(0);
+  };
+  
+  const ceoColor = ceoNetValue > 0 ? 'text-green-600' : (ceoNetValue < 0 ? 'text-red-600' : 'text-gray-900');
 
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6">
@@ -915,7 +969,9 @@ const CompanyOverviewDisplay = ({ data }) => {
                 <dt className="text-gray-500">Float Shares</dt> <dd className="text-right font-medium text-gray-900">{formatLargeNumber(data.SharesFloat)}</dd>
                 <dt className="text-gray-500">% Insiders</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInsiders ? parseFloat(data.PercentInsiders).toFixed(2) + '%' : 'N/A'}</dd>
                 <dt className="text-gray-500">% Institutions</dt> <dd className="text-right font-medium text-gray-900">{data.PercentInstitutions ? parseFloat(data.PercentInstitutions).toFixed(2) + '%' : 'N/A'}</dd>
-                <dt className="text-gray-500">Net Insider Activity</dt> <dd className={`text-right font-medium ${insiderColor}`}>{insiderSummary}</dd>
+                <dt className="text-gray-500">Insider Buy (FY)</dt> <dd className="text-right font-medium text-green-600">{formatLargeNumber(insiderBuyShares)} / {formatMoneyShort(insiderBuyValue)}</dd>
+                <dt className="text-gray-500">Insider Sell (FY)</dt> <dd className="text-right font-medium text-red-600">{formatLargeNumber(insiderSellShares)} / {formatMoneyShort(insiderSellValue)}</dd>
+                <dt className="text-gray-500">CEO Activity (FY)</dt> <dd className={`text-right font-medium ${ceoColor}`}>{formatLargeNumber(Math.abs(ceoNetShares))} / {formatMoneyShort(ceoNetValue)}</dd>
              </dl>
           </div>
           
