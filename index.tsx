@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
@@ -281,6 +280,8 @@ const useStockAnalysisGenerator = () => {
   const fetchAndSummarizeTranscript = useCallback(async () => {
       if (!generatedForTicker) return;
 
+      // Do NOT add to resultOrder ('transcript') as we show it in Overview now.
+      
       setIsFetchingTranscript(true);
       setIsGeneratingSummary(true);
       
@@ -336,8 +337,9 @@ const useStockAnalysisGenerator = () => {
              throw new Error(data.error || 'Failed to fetch transcript.');
          }
          
+         // Set transcript data so it displays
          setTranscriptData(data);
-         setIsFetchingTranscript(false);
+         setIsFetchingTranscript(false); // Transcript fetch done
 
          // 3. Generate Summary immediately
          if (!data.transcript || data.transcript.length === 0) {
@@ -365,6 +367,7 @@ const useStockAnalysisGenerator = () => {
 
       } catch (e) {
           console.error(e);
+          // If we failed at transcript stage, setIsFetchingTranscript needs to be false
           setIsFetchingTranscript(false);
           
           if (!transcriptData) {
@@ -378,6 +381,7 @@ const useStockAnalysisGenerator = () => {
       }
   }, [generatedForTicker, companyOverview]);
   
+  // Helper to just switch range in UI without fetching
   const setRange = (range) => {
       setChartRange(range);
   };
@@ -420,6 +424,8 @@ const useStockAnalysisGenerator = () => {
     fetchStockChart,
     chartRange,
     setRange,
+    
+    // Transcript props
     transcriptData,
     isFetchingTranscript,
     transcriptError,
@@ -427,10 +433,12 @@ const useStockAnalysisGenerator = () => {
     isGeneratingSummary,
     summaryError,
     fetchAndSummarizeTranscript,
+    
     resultOrder,
   };
 };
 
+// --- ICONS ---
 const ChartIcon = (props) => (
   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -467,6 +475,7 @@ const Spinner = (props) => (
   </svg>
 );
 
+// --- COMPONENTS ---
 const Header = ({ isTickerPresent, generatedForTicker }) => {
   return (
     <header className="text-center mb-8">
@@ -503,7 +512,9 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       } catch (err) {
           console.error('Failed to copy text to clipboard:', err);
       }
+
       window.open(perplexityUrl, '_blank', 'noopener,noreferrer');
+
       setTimeout(() => setIsPerplexityBusy(false), 2500);
   }, [content]);
 
@@ -516,7 +527,9 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       } catch (err) {
           console.error('Failed to copy text to clipboard for Gemini:', err);
       }
+
       window.open(geminiUrl, '_blank', 'noopener,noreferrer');
+
       setTimeout(() => setIsGeminiBusy(false), 2500);
   }, [content]);
   
@@ -529,7 +542,9 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       } catch (err) {
           console.error('Failed to copy text to clipboard for ChatGPT:', err);
       }
+
       window.open(chatGptUrl, '_blank', 'noopener,noreferrer');
+
       setTimeout(() => setIsChatGptBusy(false), 2500);
   }, [content]);
 
@@ -670,7 +685,7 @@ const SuccessDisplay = ({
     isGeneratingWithGemini,
     onFetchStockChart,
     isFetchingChart,
-    onFetchTranscript,
+    onFetchTranscript, // Keep prop but we use it inside Overview now
     isFetchingTranscript,
     isGeneratingSummary,
     transcriptSummary
@@ -1215,18 +1230,12 @@ const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summa
 
 const IncomeStatementDisplay = ({ data, ticker }) => {
     const [reportType, setReportType] = useState('annual'); // 'annual' or 'quarterly'
-    const [showEstimates, setShowEstimates] = useState(false);
 
-    // Ensure we handle the combined data structure { income: ..., earnings: ... }
-    const incomeData = data?.income || data; // Fallback if old structure
-    // New data structure has 'earnings' key containing 'estimates' array from EARNINGS_ESTIMATES
-    const estimatesData = data?.earnings?.estimates || null;
-
-    const hasAnnualData = incomeData?.annualReports?.length > 0;
-    const hasQuarterlyData = incomeData?.quarterlyReports?.length > 0;
+    const hasAnnualData = data?.annualReports?.length > 0;
+    const hasQuarterlyData = data?.quarterlyReports?.length > 0;
 
     // Default to annual if it exists, otherwise quarterly.
-    useEffect(() => {
+    React.useEffect(() => {
         if (hasAnnualData) {
             setReportType('annual');
         } else if (hasQuarterlyData) {
@@ -1234,8 +1243,8 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
         }
     }, [hasAnnualData, hasQuarterlyData]);
 
-    if (!incomeData || (!hasAnnualData && !hasQuarterlyData)) {
-        if (!incomeData) return null;
+    if (!data || (!hasAnnualData && !hasQuarterlyData)) {
+        if (!data) return null; // Don't show anything if data object doesn't exist yet
         return (
             <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden p-6 text-center text-gray-600">
                 Income statement data not available for {ticker}.
@@ -1272,76 +1281,29 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
 
     const formatQuarter = (dateString) => {
         const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString; 
+        if (isNaN(date.getTime())) return dateString; // Fallback for invalid dates
         const year = date.getFullYear();
-        const month = date.getMonth(); 
+        const month = date.getMonth(); // 0-11
         const quarter = Math.floor(month / 3) + 1;
         return `${year}Q${quarter}`;
     };
-
-    const reportsToShowCount = reportType === 'annual' ? 5 : 6;
-    const historicalReports = (reportType === 'annual' ? incomeData.annualReports : incomeData.quarterlyReports) || [];
-    
-    // Process Estimates if toggled
-    const futureEstimates = useMemo(() => {
-        if (!showEstimates || !estimatesData) return [];
-        
-        // Find the last reported date from historical data
-        const lastHistoricalDateStr = historicalReports[0]?.fiscalDateEnding;
-        if (!lastHistoricalDateStr) return [];
-        const lastDate = new Date(lastHistoricalDateStr);
-        
-        // Filter estimates
-        // Annual view: horizon "next fiscal year"
-        // Quarterly view: horizon "next fiscal quarter"
-        const targetHorizon = reportType === 'annual' ? 'year' : 'quarter';
-
-        return estimatesData.filter(est => {
-            const d = new Date(est.date);
-            const isFuture = d > lastDate;
-            const matchesHorizon = est.horizon && est.horizon.toLowerCase().includes(targetHorizon) && est.horizon.toLowerCase().includes('next');
-            return isFuture && matchesHorizon;
-        }).map(est => ({
-            fiscalDateEnding: est.date,
-            estimatedRevenue: est.revenue_estimate_high, // Using High Estimate as requested
-            estimatedEPS: est.eps_estimate_average
-        })).sort((a, b) => new Date(b.fiscalDateEnding).getTime() - new Date(a.fiscalDateEnding).getTime())
-        .slice(0, 4); // Show up to 4 future estimates
-
-    }, [showEstimates, estimatesData, reportType, historicalReports]);
-
-    const sortedEstimates = [...futureEstimates]; // Already sorted descending
-    const displayColumns = [...sortedEstimates, ...historicalReports.slice(0, reportsToShowCount)];
-
+  
     const metricsToShow = {
         'totalRevenue': 'Total Revenue',
         'grossProfit': 'Gross Profit',
-        'netIncome': 'Net Income',
-        'eps': 'EPS' // Combined row
+        'netIncome': 'Net Income'
     };
+
+    const reportsToShow = reportType === 'annual' ? 5 : 6;
+    const reports = (reportType === 'annual' ? data.annualReports : data.quarterlyReports)?.slice(0, reportsToShow) || [];
   
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-5 gap-4">
-                <div className="flex items-center gap-3">
-                    <h3 className="font-medium text-gray-700">Income Statement</h3>
-                    {estimatesData && (
-                        <label className="flex items-center cursor-pointer text-xs select-none">
-                            <div className="relative">
-                                <input 
-                                    type="checkbox" 
-                                    checked={showEstimates} 
-                                    onChange={() => setShowEstimates(!showEstimates)} 
-                                    className="sr-only" 
-                                />
-                                <div className={`block w-8 h-5 rounded-full transition-colors ${showEstimates ? 'bg-[#38B6FF]' : 'bg-gray-300'}`}></div>
-                                <div className={`dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${showEstimates ? 'transform translate-x-3' : ''}`}></div>
-                            </div>
-                            <span className="ml-2 text-gray-500 font-medium">Show Estimates</span>
-                        </label>
-                    )}
-                </div>
+            <div className="flex justify-between items-center mb-5">
+                <h3 className="font-medium text-gray-700">
+                    Income Statement
+                </h3>
                 
                 <div className="flex bg-gray-200/80 rounded-lg p-1">
                     <button
@@ -1369,71 +1331,60 @@ const IncomeStatementDisplay = ({ data, ticker }) => {
                 </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-600">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-100">
-                <tr>
-                  <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10 min-w-[120px]">Metric</th>
-                  {displayColumns.map((col, idx) => {
-                      const isEstimate = idx < sortedEstimates.length;
-                      return (
-                        <th scope="col" className={`px-4 py-3 text-right whitespace-nowrap ${isEstimate ? 'text-[#38B6FF] italic bg-blue-50/50' : ''}`} key={col.fiscalDateEnding}>
-                            {reportType === 'annual' ? new Date(col.fiscalDateEnding).getFullYear() : formatQuarter(col.fiscalDateEnding)}
-                            {isEstimate && <span className="block text-[9px] font-normal not-italic text-gray-400">Est</span>}
-                        </th>
-                      );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(metricsToShow).map(([key, displayName]) => (
-                  <tr className="bg-white border-b hover:bg-gray-50" key={key}>
-                    <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
-                      {displayName}
-                    </th>
-                    {displayColumns.map((col, idx) => {
-                        const isEstimate = idx < sortedEstimates.length;
-                        let val = 'N/A';
-                        
-                        if (isEstimate) {
-                            // Map estimates
-                            if (key === 'eps') {
-                                val = col.estimatedEPS;
-                            } else if (key === 'totalRevenue') {
-                                val = col.estimatedRevenue;
-                            } else {
-                                val = 'N/A';
-                            }
-                        } else {
-                            // Historical Data
-                            if (key === 'eps') {
-                                // Some endpoints return reportedEPS directly, INCOME_STATEMENT usually doesn't have explicit 'eps' field in older versions
-                                // but we might find 'reportedEPS' if we had earnings data merged. 
-                                // However, standard INCOME_STATEMENT usually doesn't.
-                                // Let's check if 'reportedEPS' or 'eps' is on the object.
-                                // If not, we check 'netIncome' / 'commonStockSharesOutstanding' manually? No, simpler to just N/A if missing.
-                                // Wait, the alpha vantage INCOME_STATEMENT output usually doesn't include EPS. 
-                                // We might need to rely on 'EARNINGS' endpoint for historical EPS if we wanted it.
-                                // But let's assume if it's there we show it. 
-                                // Actually, let's use 'netIncome' if 'eps' is missing? No that's wrong units.
-                                // Let's leave N/A if missing in historical for now as we switched away from EARNINGS endpoint for historical.
-                                val = 'N/A';
-                            } else {
-                                val = col[key];
-                            }
-                        }
+          {reports.length > 0 ? (
+            <>
+                {/* Desktop Table View */}
+                <div className="overflow-x-auto hidden md:block">
+                    <table className="w-full text-sm text-left text-gray-600">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                        <tr>
+                        <th scope="col" className="px-4 py-3 sticky left-0 bg-gray-100 z-10">Metric</th>
+                        {reports.map(report => (
+                            <th scope="col" className="px-4 py-3 text-right" key={report.fiscalDateEnding}>
+                            {reportType === 'annual' ? new Date(report.fiscalDateEnding).getFullYear() : formatQuarter(report.fiscalDateEnding)}
+                            </th>
+                        ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {Object.entries(metricsToShow).map(([key, displayName]) => (
+                        <tr className="bg-white border-b hover:bg-gray-50" key={key}>
+                            <th scope="row" className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 align-top">
+                            {displayName}
+                            </th>
+                            {reports.map((report) => (
+                                <td className="px-4 py-3 text-right align-top" key={`${report.fiscalDateEnding}-${key}`}>
+                                    {formatValue(report[key])}
+                                </td>
+                            ))}
+                        </tr>
+                        ))}
+                    </tbody>
+                    </table>
+                </div>
 
-                        return (
-                            <td className={`px-4 py-3 text-right align-top ${isEstimate ? 'bg-blue-50/20 text-gray-500 italic' : ''}`} key={`${col.fiscalDateEnding}-${key}`}>
-                                {key === 'eps' || (isEstimate && key === 'eps') ? (val && val !== 'N/A' ? `$${Number(val).toFixed(2)}` : 'N/A') : formatValue(val)}
-                            </td>
-                        );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                {/* Mobile Card View */}
+                <div className="block md:hidden space-y-4">
+                    {reports.map(report => (
+                        <div key={report.fiscalDateEnding} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                            <h4 className="font-semibold text-base text-gray-800 mb-3 pb-2 border-b border-gray-200">
+                                {reportType === 'annual' ? `Year ${new Date(report.fiscalDateEnding).getFullYear()}` : formatQuarter(report.fiscalDateEnding)}
+                            </h4>
+                            <dl className="space-y-2 text-sm">
+                                {Object.entries(metricsToShow).map(([key, displayName]) => (
+                                    <div key={key} className="flex justify-between items-center">
+                                        <dt className="text-gray-600">{displayName}</dt>
+                                        <dd className="font-medium text-gray-900 text-right">{formatValue(report[key])}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </div>
+                    ))}
+                </div>
+            </>
+          ) : (
+            <p className="text-center text-gray-500 mt-4">No {reportType} data available.</p>
+          )}
         </div>
       </div>
     );
@@ -1906,7 +1857,7 @@ const App = () => {
                   isGeneratingWithGemini={isGeneratingWithGemini}
                   onFetchStockChart={fetchStockChart}
                   isFetchingChart={isFetchingChart}
-                  onFetchTranscript={fetchAndSummarizeTranscript} 
+                  onFetchTranscript={fetchAndSummarizeTranscript} // Updated usage, though button removed in component
                   isFetchingTranscript={isFetchingTranscript}
                   isGeneratingSummary={isGeneratingSummary}
                   transcriptSummary={transcriptSummary}
