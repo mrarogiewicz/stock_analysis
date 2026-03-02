@@ -16,6 +16,7 @@ import {
 // --- HOOKS ---
 const useStockAnalysisGenerator = () => {
   const [ticker, setTicker] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -106,8 +107,8 @@ const useStockAnalysisGenerator = () => {
           detailResponse.text()
       ]);
       
-      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase());
-      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase());
+      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/\[COMPANY\]/g, companyName || ticker.toUpperCase());
+      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/\[COMPANY\]/g, companyName || ticker.toUpperCase());
       
       setGeneratedSimpleContent(finalSimplePrompt);
       setGeneratedDetailContent(finalDetailPrompt);
@@ -122,7 +123,7 @@ const useStockAnalysisGenerator = () => {
       setIsLoading(false);
     }
 
-  }, [ticker]);
+  }, [ticker, companyName]);
   
   const saveAnalysis = useCallback(async () => {
     const contentToSave = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
@@ -394,6 +395,8 @@ const useStockAnalysisGenerator = () => {
   return {
     ticker,
     setTicker: handleSetTicker,
+    companyName,
+    setCompanyName,
     displayType,
     setDisplayType,
     isLoading,
@@ -494,7 +497,7 @@ const Header = ({ isTickerPresent, generatedForTicker }) => {
   );
 };
 
-const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content }) => {
+const InputForm = ({ ticker, setTicker, setCompanyName, isLoading, onSubmit, hasContent, content }) => {
   const [isNotebookLMBusy, setIsNotebookLMBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
   const [isChatGptBusy, setIsChatGptBusy] = useState(false);
@@ -654,6 +657,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                                 onClick={() => {
                                     isSelectionRef.current = true;
                                     setTicker(result['1. symbol']);
+                                    setCompanyName(result['2. name']);
                                     setSearchResults([]);
                                     setShowDropdown(false);
                                 }}
@@ -1872,6 +1876,8 @@ const App = () => {
   const {
     ticker,
     setTicker,
+    companyName,
+    setCompanyName,
     displayType,
     setDisplayType,
     isLoading,
@@ -2006,6 +2012,7 @@ const App = () => {
                     <InputForm
                         ticker={ticker}
                         setTicker={setTicker}
+                        setCompanyName={setCompanyName}
                         isLoading={isLoading}
                         onSubmit={generateAnalysis}
                         hasContent={hasContent}
