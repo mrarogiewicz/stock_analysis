@@ -606,6 +606,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
     e.preventDefault();
     onSubmit();
     setShowDropdown(false);
+    setSearchMode('ticker');
   };
   const isDisabledAndNotLoading = !isLoading && !ticker.trim();
     
