@@ -107,8 +107,8 @@ const useStockAnalysisGenerator = () => {
           detailResponse.text()
       ]);
       
-      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/\[COMPANY\]/g, 'YYY');
-      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/\[COMPANY\]/g, 'YYY');
+      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, companyName || ticker.toUpperCase());
+      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, companyName || ticker.toUpperCase());
       
       setGeneratedSimpleContent(finalSimplePrompt);
       setGeneratedDetailContent(finalDetailPrompt);
