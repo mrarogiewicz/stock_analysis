@@ -607,21 +607,18 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <div className="flex gap-2 justify-center">
-            <div 
-                className="bg-gray-100/80 backdrop-blur-sm p-1 rounded-xl flex shadow-inner border border-gray-200 shrink-0 items-center cursor-pointer relative"
-                onClick={() => {
-                    if (searchMode === 'ticker') {
-                        setSearchMode('company');
-                        setTicker('');
-                    } else {
-                        setSearchMode('ticker');
-                    }
-                    setSearchResults([]);
-                    setShowDropdown(false);
-                }}
-            >
-                <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
-                    <span className={searchMode === 'ticker' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
+            <div className="bg-gray-100/80 backdrop-blur-sm p-1 rounded-xl flex shadow-inner border border-gray-200 shrink-0 items-center relative">
+                <div 
+                    className={`relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center cursor-pointer ${searchMode !== 'ticker' ? 'hover:bg-gray-200' : ''}`}
+                    onClick={() => {
+                        if (searchMode !== 'ticker') {
+                            setSearchMode('ticker');
+                            setSearchResults([]);
+                            setShowDropdown(false);
+                        }
+                    }}
+                >
+                    <span className={searchMode === 'ticker' ? 'text-white' : 'text-gray-500'}>
                         {searchMode === 'ticker' ? 'Ticker' : 'T'}
                     </span>
                     {searchMode === 'ticker' && (
@@ -632,8 +629,18 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                         />
                     )}
                 </div>
-                <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
-                    <span className={searchMode === 'company' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
+                <div 
+                    className={`relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center cursor-pointer ${searchMode !== 'company' ? 'hover:bg-gray-200' : ''}`}
+                    onClick={() => {
+                        if (searchMode !== 'company') {
+                            setSearchMode('company');
+                            setTicker('');
+                            setSearchResults([]);
+                            setShowDropdown(false);
+                        }
+                    }}
+                >
+                    <span className={searchMode === 'company' ? 'text-white' : 'text-gray-500'}>
                         {searchMode === 'company' ? 'Name' : 'N'}
                     </span>
                     {searchMode === 'company' && (
