@@ -107,8 +107,8 @@ const useStockAnalysisGenerator = () => {
           detailResponse.text()
       ]);
       
-      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/\[COMPANY\]/g, companyName || ticker.toUpperCase());
-      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/\[COMPANY\]/g, companyName || ticker.toUpperCase());
+      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/\[COMPANY\]/g, 'YYY');
+      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/\[COMPANY\]/g, 'YYY');
       
       setGeneratedSimpleContent(finalSimplePrompt);
       setGeneratedDetailContent(finalDetailPrompt);
@@ -501,6 +501,7 @@ const InputForm = ({ ticker, setTicker, setCompanyName, isLoading, onSubmit, has
   const [isNotebookLMBusy, setIsNotebookLMBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
   const [isChatGptBusy, setIsChatGptBusy] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   const notebookLMUrl = 'https://notebooklm.google.com/?icid=home_maincta';
   const geminiUrl = 'https://gemini.google.com/app';
@@ -614,7 +615,7 @@ const InputForm = ({ ticker, setTicker, setCompanyName, isLoading, onSubmit, has
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </div>
-                {!ticker && (
+                {!ticker && !isFocused && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-gray-400 text-base">
                         <span>Search <span className="font-bold text-gray-500">Company</span></span>
                     </div>
@@ -627,11 +628,16 @@ const InputForm = ({ ticker, setTicker, setCompanyName, isLoading, onSubmit, has
                         setTicker(e.target.value);
                         if (e.target.value.length < 2) setShowDropdown(false);
                     }}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => {
+                        // Delay blur to allow click on dropdown items
+                        setTimeout(() => setIsFocused(false), 200);
+                    }}
                     placeholder=""
                     maxLength={50}
                     autoFocus
                     autoComplete="off"
-                    className="w-64 pl-10 pr-2.5 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center"
+                    className="w-64 pl-10 pr-10 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center"
                 />
                 {ticker && (
                     <button
