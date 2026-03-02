@@ -619,10 +619,34 @@ const InputForm = ({ ticker, setTicker, setCompanyName, isLoading, onSubmit, has
     onSubmit();
     setShowDropdown(false);
   };
+
+  const handleTestScript = async () => {
+    try {
+      const res = await fetch('/api/test-script');
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.output);
+      } else {
+        alert(`Error: ${data.error}\nStderr: ${data.stderr}`);
+      }
+    } catch (e) {
+      alert(`Request failed: ${e.message}`);
+    }
+  };
+
   const isDisabledAndNotLoading = !isLoading && !ticker.trim();
     
   return (
     <div className="space-y-4">
+      <div className="flex justify-center">
+        <button
+            type="button"
+            onClick={handleTestScript}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+        >
+            Test
+        </button>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <div className="flex gap-2 justify-center">

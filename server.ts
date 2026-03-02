@@ -13,6 +13,7 @@ import saveAnalysisHandler from './api/save-analysis';
 import stockChartHandler from './api/stock-chart';
 import summarizeEarningsHandler from './api/summarize-earnings';
 import symbolSearchHandler from './api/symbol-search';
+import testScriptHandler from './api/test-script';
 
 async function startServer() {
   const app = express();
@@ -42,6 +43,7 @@ async function startServer() {
   app.get('/api/stock-chart', wrap(stockChartHandler));
   app.post('/api/summarize-earnings', wrap(summarizeEarningsHandler));
   app.get('/api/symbol-search', wrap(symbolSearchHandler));
+  app.get('/api/test-script', wrap(testScriptHandler));
 
   // Vite middleware for development
   // In production, we would serve static files, but for this environment we use Vite middleware
