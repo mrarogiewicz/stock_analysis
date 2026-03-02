@@ -553,8 +553,14 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchMode, setSearchMode] = useState('ticker'); // 'ticker' | 'company'
   const searchTimeout = useRef(null);
+  const isSelectionRef = useRef(false);
 
   useEffect(() => {
+      if (isSelectionRef.current) {
+          isSelectionRef.current = false;
+          return;
+      }
+
       if (searchMode === 'ticker') {
           setSearchResults([]);
           setShowDropdown(false);
@@ -699,6 +705,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                             <div 
                                 key={index}
                                 onClick={() => {
+                                    isSelectionRef.current = true;
                                     setTicker(result['1. symbol']);
                                     setSearchResults([]);
                                     setShowDropdown(false);
