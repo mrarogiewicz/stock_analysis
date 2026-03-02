@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
 import { motion } from 'framer-motion';
+import { Pencil, Search } from 'lucide-react';
 import {
   ComposedChart,
   Line,
@@ -628,7 +629,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
             >
                 <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
                     <span className={searchMode === 'ticker' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
-                        {searchMode === 'ticker' ? 'Ticker' : 'T'}
+                        {searchMode === 'ticker' ? 'Input' : <Pencil size={16} />}
                     </span>
                     {searchMode === 'ticker' && (
                         <motion.div
@@ -640,7 +641,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                 </div>
                 <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
                     <span className={searchMode === 'company' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
-                        {searchMode === 'company' ? 'Name' : 'N'}
+                        {searchMode === 'company' ? 'Search' : <Search size={16} />}
                     </span>
                     {searchMode === 'company' && (
                         <motion.div
