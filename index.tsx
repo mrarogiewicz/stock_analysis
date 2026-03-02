@@ -607,18 +607,21 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <div className="flex gap-2 justify-center">
-            <div className="bg-gray-100/80 backdrop-blur-sm p-1 rounded-xl flex shadow-inner border border-gray-200 shrink-0 items-center relative">
-                <div 
-                    className={`relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center cursor-pointer ${searchMode !== 'ticker' ? 'hover:bg-gray-200' : ''}`}
-                    onClick={() => {
-                        if (searchMode !== 'ticker') {
-                            setSearchMode('ticker');
-                            setSearchResults([]);
-                            setShowDropdown(false);
-                        }
-                    }}
-                >
-                    <span className={searchMode === 'ticker' ? 'text-white' : 'text-gray-500'}>
+            <div 
+                className="bg-gray-100/80 backdrop-blur-sm p-1 rounded-xl flex shadow-inner border border-gray-200 shrink-0 items-center cursor-pointer relative"
+                onClick={() => {
+                    if (searchMode === 'ticker') {
+                        setSearchMode('company');
+                        setTicker('');
+                    } else {
+                        setSearchMode('ticker');
+                    }
+                    setSearchResults([]);
+                    setShowDropdown(false);
+                }}
+            >
+                <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
+                    <span className={searchMode === 'ticker' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
                         {searchMode === 'ticker' ? 'Ticker' : 'T'}
                     </span>
                     {searchMode === 'ticker' && (
@@ -629,18 +632,8 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                         />
                     )}
                 </div>
-                <div 
-                    className={`relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center cursor-pointer ${searchMode !== 'company' ? 'hover:bg-gray-200' : ''}`}
-                    onClick={() => {
-                        if (searchMode !== 'company') {
-                            setSearchMode('company');
-                            setTicker('');
-                            setSearchResults([]);
-                            setShowDropdown(false);
-                        }
-                    }}
-                >
-                    <span className={searchMode === 'company' ? 'text-white' : 'text-gray-500'}>
+                <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
+                    <span className={searchMode === 'company' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
                         {searchMode === 'company' ? 'Name' : 'N'}
                     </span>
                     {searchMode === 'company' && (
@@ -661,6 +654,15 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                         </svg>
                     </div>
                 )}
+                {!ticker && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-gray-400 text-base">
+                        {searchMode === 'company' ? (
+                            <span>Search <span className="font-bold text-gray-500">Company</span></span>
+                        ) : (
+                            <span>Enter <span className="font-bold text-gray-500">Ticker</span></span>
+                        )}
+                    </div>
+                )}
                 <input
                     id="tickerInput"
                     type="text"
@@ -669,11 +671,11 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                         setTicker(e.target.value);
                         if (e.target.value.length < 2) setShowDropdown(false);
                     }}
-                    placeholder={searchMode === 'company' ? "Search company (e.g. Apple)" : "Enter ticker (e.g. AAPL)"}
+                    placeholder=""
                     maxLength={10}
                     autoFocus
                     autoComplete="off"
-                    className={`${searchMode === 'ticker' ? 'w-56 px-5' : 'w-72 px-10'} py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center`}
+                    className={`${searchMode === 'ticker' ? 'w-40 px-2.5' : 'w-56 px-5'} py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center`}
                 />
                 {ticker && (
                     <button
@@ -696,15 +698,15 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                         {searchResults.map((result, index) => (
                             <div 
                                 key={index}
-                                className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors duration-150"
                                 onClick={() => {
                                     setTicker(result['1. symbol']);
                                     setSearchResults([]);
                                     setShowDropdown(false);
                                 }}
+                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors duration-150 group"
                             >
-                                <span className="font-bold text-gray-900">{result['1. symbol']}</span>
-                                <span className="text-sm text-gray-500 text-right truncate ml-4 flex-1">{result['2. name']}</span>
+                                <span className="font-bold text-gray-900 group-hover:text-blue-700">{result['1. symbol']}</span>
+                                <span className="text-sm text-gray-500 group-hover:text-blue-600 text-right truncate ml-4 flex-1">{result['2. name']}</span>
                             </div>
                         ))}
                     </div>
