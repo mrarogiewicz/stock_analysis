@@ -930,12 +930,15 @@ const SuccessDisplay = ({
                     onClick={async () => {
                         try {
                             const res = await fetch('/api/test');
-                            if (!res.ok) throw new Error('Request failed');
+                            if (!res.ok) {
+                                const errorText = await res.text();
+                                throw new Error(`Status: ${res.status} ${res.statusText}\nResponse: ${errorText}`);
+                            }
                             const data = await res.json();
                             window.alert(data.random_string);
-                        } catch (e) {
+                        } catch (e: any) {
                             console.error(e);
-                            window.alert('Failed to call Python backend');
+                            window.alert(`Failed to call Python backend.\n\nError details:\n${e.message}`);
                         }
                     }}
                     className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner transition-all duration-200"
