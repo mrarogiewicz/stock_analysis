@@ -675,7 +675,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                     maxLength={10}
                     autoFocus
                     autoComplete="off"
-                    className={`${searchMode === 'ticker' ? 'w-40 px-2.5' : 'w-56 px-5'} py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center`}
+                    className={`${searchMode === 'ticker' ? 'w-40 px-2.5' : 'w-64 pl-5 pr-2.5'} py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center`}
                 />
                 {ticker && (
                     <button
