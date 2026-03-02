@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
+import { motion } from 'framer-motion';
 import {
   ComposedChart,
   Line,
@@ -550,9 +551,16 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
 
   const [searchResults, setSearchResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [searchMode, setSearchMode] = useState('ticker'); // 'ticker' | 'company'
   const searchTimeout = useRef(null);
 
   useEffect(() => {
+      if (searchMode === 'ticker') {
+          setSearchResults([]);
+          setShowDropdown(false);
+          return;
+      }
+
       if (!ticker || ticker.length < 2) {
           setSearchResults([]);
           setShowDropdown(false);
@@ -585,7 +593,7 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       return () => {
           if (searchTimeout.current) clearTimeout(searchTimeout.current);
       };
-  }, [ticker]);
+  }, [ticker, searchMode]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -597,64 +605,104 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
   return (
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="relative">
-          <label htmlFor="tickerInput" className="block text-gray-700 font-medium mb-2 ml-1">
-            Enter stock ticker
-          </label>
-          <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-              </div>
-              <input
-                id="tickerInput"
-                type="text"
-                value={ticker}
-                onChange={(e) => {
-                    setTicker(e.target.value);
-                    if (e.target.value.length < 2) setShowDropdown(false);
+        <div>
+          <div className="flex gap-2 justify-center">
+            <div 
+                className="bg-gray-100/80 backdrop-blur-sm p-1 rounded-xl flex shadow-inner border border-gray-200 shrink-0 items-center cursor-pointer relative"
+                onClick={() => {
+                    if (searchMode === 'ticker') {
+                        setSearchMode('company');
+                        setTicker('');
+                    } else {
+                        setSearchMode('ticker');
+                    }
+                    setSearchResults([]);
+                    setShowDropdown(false);
                 }}
-                placeholder="Search symbol (e.g. AAPL)"
-                maxLength={10}
-                autoFocus
-                autoComplete="off"
-                className="w-full pl-10 pr-10 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200"
-              />
-              {ticker && (
-                  <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                      onClick={() => {
-                          setTicker('');
-                          setSearchResults([]);
-                          setShowDropdown(false);
-                      }}
-                  >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                  </button>
-              )}
-              
-              {showDropdown && searchResults.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                      {searchResults.map((result, index) => (
-                          <div 
-                              key={index}
-                              className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors duration-150"
-                              onClick={() => {
-                                  setTicker(result['1. symbol']);
-                                  setSearchResults([]);
-                                  setShowDropdown(false);
-                              }}
-                          >
-                              <span className="font-bold text-gray-900">{result['1. symbol']}</span>
-                              <span className="text-sm text-gray-500 text-right truncate ml-4 flex-1">{result['2. name']}</span>
-                          </div>
-                      ))}
-                  </div>
-              )}
+            >
+                <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
+                    <span className={searchMode === 'ticker' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
+                        {searchMode === 'ticker' ? 'Ticker' : 'T'}
+                    </span>
+                    {searchMode === 'ticker' && (
+                        <motion.div
+                            layoutId="toggle-pill"
+                            className="absolute inset-0 bg-[#38B6FF] rounded-lg shadow-md -z-10"
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                    )}
+                </div>
+                <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
+                    <span className={searchMode === 'company' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
+                        {searchMode === 'company' ? 'Name' : 'N'}
+                    </span>
+                    {searchMode === 'company' && (
+                        <motion.div
+                            layoutId="toggle-pill"
+                            className="absolute inset-0 bg-[#38B6FF] rounded-lg shadow-md -z-10"
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                    )}
+                </div>
+            </div>
+
+            <div className="relative">
+                {searchMode === 'company' && (
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                )}
+                <input
+                    id="tickerInput"
+                    type="text"
+                    value={ticker}
+                    onChange={(e) => {
+                        setTicker(e.target.value);
+                        if (e.target.value.length < 2) setShowDropdown(false);
+                    }}
+                    placeholder={searchMode === 'company' ? "Search company (e.g. Apple)" : "Enter ticker (e.g. AAPL)"}
+                    maxLength={10}
+                    autoFocus
+                    autoComplete="off"
+                    className={`${searchMode === 'ticker' ? 'w-56 px-5' : 'w-72 px-10'} py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center`}
+                />
+                {ticker && (
+                    <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        onClick={() => {
+                            setTicker('');
+                            setSearchResults([]);
+                            setShowDropdown(false);
+                        }}
+                    >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                )}
+                
+                {showDropdown && searchResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                        {searchResults.map((result, index) => (
+                            <div 
+                                key={index}
+                                className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors duration-150"
+                                onClick={() => {
+                                    setTicker(result['1. symbol']);
+                                    setSearchResults([]);
+                                    setShowDropdown(false);
+                                }}
+                            >
+                                <span className="font-bold text-gray-900">{result['1. symbol']}</span>
+                                <span className="text-sm text-gray-500 text-right truncate ml-4 flex-1">{result['2. name']}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
           </div>
         </div>
 
