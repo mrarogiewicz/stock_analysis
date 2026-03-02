@@ -495,17 +495,17 @@ const Header = ({ isTickerPresent, generatedForTicker }) => {
 };
 
 const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content }) => {
-  const [isPerplexityBusy, setIsPerplexityBusy] = useState(false);
+  const [isNotebookLMBusy, setIsNotebookLMBusy] = useState(false);
   const [isGeminiBusy, setIsGeminiBusy] = useState(false);
   const [isChatGptBusy, setIsChatGptBusy] = useState(false);
 
-  const perplexityUrl = 'https://perplexity.ai/search';
+  const notebookLMUrl = 'https://notebooklm.google.com/?icid=home_maincta';
   const geminiUrl = 'https://gemini.google.com/app';
   const chatGptUrl = 'https://chatgpt.com/';
 
-  const handlePerplexityClick = useCallback(async (e) => {
+  const handleNotebookLMClick = useCallback(async (e) => {
       e.preventDefault();
-      setIsPerplexityBusy(true);
+      setIsNotebookLMBusy(true);
 
       try {
           await navigator.clipboard.writeText(content);
@@ -513,9 +513,9 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
           console.error('Failed to copy text to clipboard:', err);
       }
 
-      window.open(perplexityUrl, '_blank', 'noopener,noreferrer');
+      window.open(notebookLMUrl, '_blank', 'noopener,noreferrer');
 
-      setTimeout(() => setIsPerplexityBusy(false), 2500);
+      setTimeout(() => setIsNotebookLMBusy(false), 2500);
   }, [content]);
 
   const handleGeminiClick = useCallback(async (e) => {
@@ -600,19 +600,19 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
          <div className="space-y-4 pt-2 border-t border-gray-100 animate-[fadeIn_0.5s_ease-in-out]">
             <div className="flex items-center justify-center gap-4">
                 <a
-                href={perplexityUrl}
-                onClick={handlePerplexityClick}
+                href={notebookLMUrl}
+                onClick={handleNotebookLMClick}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Copy & Open in Perplexity"
+                title="Copy & Open in NotebookLM"
                 className="w-11 h-11 p-1.5 flex items-center justify-center rounded-lg bg-white shadow-md hover:shadow-lg active:shadow-inner transition-all duration-200"
                 >
-                {isPerplexityBusy ? (
+                {isNotebookLMBusy ? (
                     <CheckIcon className="w-full h-full text-green-500" />
                 ) : (
                     <img
-                    src="https://images.seeklogo.com/logo-png/61/1/perplexity-ai-icon-black-logo-png_seeklogo-611679.png"
-                    alt="Perplexity Logo"
+                    src="https://static.vecteezy.com/system/resources/previews/072/969/377/non_2x/google-notebook-lm-logo-icon-high-resolution-free-vector.jpg"
+                    alt="NotebookLM Logo"
                     className="w-full h-full object-contain"
                     />
                 )}
