@@ -88,6 +88,23 @@ const useStockAnalysisGenerator = () => {
 
 
     try {
+      let currentCompanyName = companyName;
+
+      if (!currentCompanyName) {
+          try {
+              const res = await fetch(`/api/symbol-search?keywords=${ticker}`);
+              if (res.ok) {
+                  const data = await res.json();
+                  if (data.bestMatches && data.bestMatches.length > 0) {
+                      currentCompanyName = data.bestMatches[0]['2. name'];
+                      setCompanyName(currentCompanyName);
+                  }
+              }
+          } catch (e) {
+              console.error("Failed to auto-fetch company name", e);
+          }
+      }
+
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       const simpleUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_simple.md';
@@ -107,8 +124,8 @@ const useStockAnalysisGenerator = () => {
           detailResponse.text()
       ]);
       
-      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, companyName || ticker.toUpperCase());
-      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, companyName || ticker.toUpperCase());
+      const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, currentCompanyName || ticker.toUpperCase());
+      const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, currentCompanyName || ticker.toUpperCase());
       
       setGeneratedSimpleContent(finalSimplePrompt);
       setGeneratedDetailContent(finalDetailPrompt);
@@ -626,6 +643,7 @@ const InputForm = ({ ticker, setTicker, setCompanyName, isLoading, onSubmit, has
                     value={ticker}
                     onChange={(e) => {
                         setTicker(e.target.value);
+                        setCompanyName('');
                         if (e.target.value.length < 2) setShowDropdown(false);
                     }}
                     onFocus={() => setIsFocused(true)}
