@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
 import {
@@ -548,29 +548,114 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       setTimeout(() => setIsChatGptBusy(false), 2500);
   }, [content]);
 
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchTimeout = useRef(null);
+
+  useEffect(() => {
+      if (!ticker || ticker.length < 2) {
+          setSearchResults([]);
+          setShowDropdown(false);
+          return;
+      }
+
+      if (searchTimeout.current) {
+          clearTimeout(searchTimeout.current);
+      }
+
+      searchTimeout.current = setTimeout(async () => {
+          try {
+              const res = await fetch(`/api/symbol-search?keywords=${ticker}`);
+              if (!res.ok) throw new Error('Search failed');
+              const data = await res.json();
+              if (data.bestMatches) {
+                  setSearchResults(data.bestMatches.slice(0, 5));
+                  setShowDropdown(true);
+              } else {
+                  setSearchResults([]);
+                  setShowDropdown(false);
+              }
+          } catch (e) {
+              console.error("Search failed", e);
+              setSearchResults([]);
+              setShowDropdown(false);
+          }
+      }, 500);
+
+      return () => {
+          if (searchTimeout.current) clearTimeout(searchTimeout.current);
+      };
+  }, [ticker]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit();
+    setShowDropdown(false);
   };
   const isDisabledAndNotLoading = !isLoading && !ticker.trim();
     
   return (
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="tickerInput" className="block text-gray-700 font-medium mb-2 text-center">
+        <div className="relative">
+          <label htmlFor="tickerInput" className="block text-gray-700 font-medium mb-2 ml-1">
             Enter stock ticker
           </label>
-          <input
-            id="tickerInput"
-            type="text"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-            placeholder="e.g., AAPL"
-            maxLength={10}
-            autoFocus
-            className="w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200 text-center"
-          />
+          <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+              </div>
+              <input
+                id="tickerInput"
+                type="text"
+                value={ticker}
+                onChange={(e) => {
+                    setTicker(e.target.value);
+                    if (e.target.value.length < 2) setShowDropdown(false);
+                }}
+                placeholder="Search symbol (e.g. AAPL)"
+                maxLength={10}
+                autoFocus
+                autoComplete="off"
+                className="w-full pl-10 pr-10 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition duration-200"
+              />
+              {ticker && (
+                  <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      onClick={() => {
+                          setTicker('');
+                          setSearchResults([]);
+                          setShowDropdown(false);
+                      }}
+                  >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                  </button>
+              )}
+              
+              {showDropdown && searchResults.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      {searchResults.map((result, index) => (
+                          <div 
+                              key={index}
+                              className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors duration-150"
+                              onClick={() => {
+                                  setTicker(result['1. symbol']);
+                                  setSearchResults([]);
+                                  setShowDropdown(false);
+                              }}
+                          >
+                              <span className="font-bold text-gray-900">{result['1. symbol']}</span>
+                              <span className="text-sm text-gray-500 text-right truncate ml-4 flex-1">{result['2. name']}</span>
+                          </div>
+                      ))}
+                  </div>
+              )}
+          </div>
         </div>
 
         <button
