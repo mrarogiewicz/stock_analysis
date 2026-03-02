@@ -703,10 +703,10 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                                     setSearchResults([]);
                                     setShowDropdown(false);
                                 }}
-                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors duration-150 group"
+                                className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors duration-150 group"
                             >
-                                <span className="font-bold text-gray-900 group-hover:text-blue-700">{result['1. symbol']}</span>
-                                <span className="text-sm text-gray-500 group-hover:text-blue-600 text-right truncate ml-4 flex-1">{result['2. name']}</span>
+                                <span className="text-sm font-bold text-gray-900 group-hover:text-blue-700">{result['1. symbol']}</span>
+                                <span className="text-xs text-gray-500 group-hover:text-blue-600 text-right truncate ml-4 flex-1">{result['2. name']}</span>
                             </div>
                         ))}
                     </div>
