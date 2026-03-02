@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
-import { motion } from 'framer-motion';
-import { Pencil, Search } from 'lucide-react';
 import {
   ComposedChart,
   Line,
@@ -552,19 +550,12 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
 
   const [searchResults, setSearchResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [searchMode, setSearchMode] = useState('ticker'); // 'ticker' | 'company'
   const searchTimeout = useRef(null);
   const isSelectionRef = useRef(false);
 
   useEffect(() => {
       if (isSelectionRef.current) {
           isSelectionRef.current = false;
-          return;
-      }
-
-      if (searchMode === 'ticker') {
-          setSearchResults([]);
-          setShowDropdown(false);
           return;
       }
 
@@ -600,13 +591,12 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       return () => {
           if (searchTimeout.current) clearTimeout(searchTimeout.current);
       };
-  }, [ticker, searchMode]);
+  }, [ticker]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit();
     setShowDropdown(false);
-    setSearchMode('ticker');
   };
   const isDisabledAndNotLoading = !isLoading && !ticker.trim();
     
@@ -615,60 +605,15 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <div className="flex gap-2 justify-center">
-            <div 
-                className="bg-gray-100/80 backdrop-blur-sm p-1 rounded-xl flex shadow-inner border border-gray-200 shrink-0 items-center cursor-pointer relative"
-                onClick={() => {
-                    if (searchMode === 'ticker') {
-                        setSearchMode('company');
-                        setTicker('');
-                    } else {
-                        setSearchMode('ticker');
-                    }
-                    setSearchResults([]);
-                    setShowDropdown(false);
-                }}
-            >
-                <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
-                    <span className={searchMode === 'ticker' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
-                        {searchMode === 'ticker' ? 'Input' : <Pencil size={16} />}
-                    </span>
-                    {searchMode === 'ticker' && (
-                        <motion.div
-                            layoutId="toggle-pill"
-                            className="absolute inset-0 bg-[#38B6FF] rounded-lg shadow-md -z-10"
-                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        />
-                    )}
-                </div>
-                <div className="relative z-10 px-3 py-2 rounded-lg text-xs font-bold uppercase select-none transition-colors duration-200 min-w-[32px] text-center">
-                    <span className={searchMode === 'company' ? 'text-white' : 'text-gray-500 hover:text-gray-700'}>
-                        {searchMode === 'company' ? 'Search' : <Search size={16} />}
-                    </span>
-                    {searchMode === 'company' && (
-                        <motion.div
-                            layoutId="toggle-pill"
-                            className="absolute inset-0 bg-[#38B6FF] rounded-lg shadow-md -z-10"
-                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        />
-                    )}
-                </div>
-            </div>
-
             <div className="relative">
-                {searchMode === 'company' && (
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                )}
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
                 {!ticker && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-gray-400 text-base">
-                        {searchMode === 'company' ? (
-                            <span>Search <span className="font-bold text-gray-500">Company</span></span>
-                        ) : (
-                            <span>Enter <span className="font-bold text-gray-500">Ticker</span></span>
-                        )}
+                        <span>Search <span className="font-bold text-gray-500">Company</span></span>
                     </div>
                 )}
                 <input
@@ -680,10 +625,10 @@ const InputForm = ({ ticker, setTicker, isLoading, onSubmit, hasContent, content
                         if (e.target.value.length < 2) setShowDropdown(false);
                     }}
                     placeholder=""
-                    maxLength={10}
+                    maxLength={50}
                     autoFocus
                     autoComplete="off"
-                    className={`${searchMode === 'ticker' ? 'w-40 px-2.5' : 'w-64 pl-5 pr-2.5'} py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center`}
+                    className="w-64 pl-10 pr-2.5 py-3 bg-white/80 border border-gray-300 rounded-xl text-gray-800 text-base focus:ring-1 focus:ring-gray-400 focus:border-gray-500 outline-none transition-all duration-300 text-center"
                 />
                 {ticker && (
                     <button
