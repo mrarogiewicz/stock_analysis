@@ -867,62 +867,58 @@ const SuccessDisplay = ({
       <div className="space-y-4">
         <div className="space-y-2">
              <div className="flex flex-col gap-2">
-                <button
-                    onClick={onFetchOverview}
-                    disabled={isFetchingOverview}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-                >
-                    {isFetchingOverview ? (
-                        <Spinner className="w-4 h-4 text-gray-600" />
-                    ) : (
-                        <>
+                <div className="flex flex-row gap-2 w-full">
+                    <button
+                        onClick={onFetchOverview}
+                        disabled={isFetchingOverview}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                        title="Overview"
+                    >
+                        {isFetchingOverview ? (
+                            <Spinner className="w-5 h-5 text-gray-600" />
+                        ) : (
                             <img 
                                 src="https://cdn-icons-png.flaticon.com/128/8016/8016700.png" 
-                                alt="" 
-                                className="w-4 h-4 object-contain" 
+                                alt="Overview" 
+                                className="w-5 h-5 object-contain" 
                             />
-                            <span>Overview</span>
-                        </>
-                    )}
-                </button>
-                
-                <button
-                    onClick={() => onFetchStockChart()}
-                    disabled={isFetchingChart}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-                >
-                    {isFetchingChart ? (
-                        <Spinner className="w-4 h-4 text-gray-600" />
-                    ) : (
-                        <>
+                        )}
+                    </button>
+                    
+                    <button
+                        onClick={() => onFetchStockChart()}
+                        disabled={isFetchingChart}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                        title="Chart"
+                    >
+                        {isFetchingChart ? (
+                            <Spinner className="w-5 h-5 text-gray-600" />
+                        ) : (
                             <img 
                                 src="https://cdn-icons-png.flaticon.com/128/2152/2152656.png" 
-                                alt="" 
-                                className="w-4 h-4 object-contain" 
+                                alt="Chart" 
+                                className="w-5 h-5 object-contain" 
                             />
-                            <span>Chart</span>
-                        </>
-                    )}
-                </button>
+                        )}
+                    </button>
 
-                <button
-                    onClick={onFetchIncomeStatement}
-                    disabled={isFetchingIncomeStatement}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-                >
-                    {isFetchingIncomeStatement ? (
-                        <Spinner className="w-4 h-4 text-gray-600" />
-                    ) : (
-                        <>
+                    <button
+                        onClick={onFetchIncomeStatement}
+                        disabled={isFetchingIncomeStatement}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                        title="Financials"
+                    >
+                        {isFetchingIncomeStatement ? (
+                            <Spinner className="w-5 h-5 text-gray-600" />
+                        ) : (
                             <img 
                                 src="https://cdn-icons-png.flaticon.com/128/3076/3076626.png" 
-                                alt="" 
-                                className="w-4 h-4 object-contain" 
+                                alt="Financials" 
+                                className="w-5 h-5 object-contain" 
                             />
-                            <span>Financials</span>
-                        </>
-                    )}
-                </button>
+                        )}
+                    </button>
+                </div>
 
                 <button
                     type="button"
