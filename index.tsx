@@ -313,7 +313,7 @@ const useStockAnalysisGenerator = () => {
   const fetchAndSummarizeTranscript = useCallback(async () => {
       if (!generatedForTicker) return;
 
-      // Do NOT add to resultOrder ('transcript') as we show it in Overview now.
+      addToResultOrder('transcript');
       
       setIsFetchingTranscript(true);
       setIsGeneratingSummary(true);
@@ -940,6 +940,26 @@ const SuccessDisplay = ({
                     )}
                 </button>
 
+                <button
+                    type="button"
+                    onClick={onFetchTranscript}
+                    disabled={isGeneratingSummary || isFetchingTranscript}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
+                >
+                    {isGeneratingSummary || isFetchingTranscript ? (
+                        <Spinner className="w-4 h-4 text-gray-600" />
+                    ) : (
+                        <>
+                            <img 
+                                src="https://cdn-icons-png.flaticon.com/128/16921/16921758.png" 
+                                alt="" 
+                                className="w-4 h-4 object-contain" 
+                            />
+                            <span>Summarize Earnings</span>
+                        </>
+                    )}
+                </button>
+
 
                
                 {displayType === 'detail' && (
@@ -1175,21 +1195,6 @@ const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing, transcriptSu
              <div className="text-right text-xs text-gray-500 hidden sm:flex flex-col items-end gap-1">
                 <p>Fiscal Year End: {data.FiscalYearEnd}</p>
                 <p>Latest Qtr: {data.LatestQuarter}</p>
-                <button
-                    onClick={onSummarize}
-                    disabled={isSummarizing}
-                    className="bg-[#38B6FF]/10 text-[#38B6FF] px-3 py-1.5 rounded-lg hover:bg-[#38B6FF]/20 transition-all flex items-center gap-2 disabled:opacity-50 mt-2 text-xs font-semibold shadow-sm"
-                    title="Fetch and summarize earnings call"
-                >
-                     {isSummarizing ? (
-                         <Spinner className="w-3 h-3 text-[#38B6FF]" />
-                     ) : (
-                         <>
-                             <img src="https://cdn-icons-png.flaticon.com/128/16921/16921758.png" className="w-3 h-3" alt="" />
-                             <span>Summarize Earnings</span>
-                         </>
-                     )}
-                </button>
              </div>
           </div>
           
@@ -1208,27 +1213,7 @@ const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing, transcriptSu
              )}
           </div>
           
-          {transcriptSummary && (
-              <div 
-                className="mt-4 cursor-pointer group border-t border-gray-100 pt-3"
-                onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsSummaryExpanded(!isSummaryExpanded) }}
-              >
-                 <h4 className="text-sm font-bold text-gray-800 mb-1">Earnings Call Executive Summary</h4>
-                 <div 
-                    className={`prose prose-sm text-gray-700 leading-relaxed text-sm transition-all duration-200 max-w-none ${isSummaryExpanded ? '' : 'line-clamp-1'}`}
-                    dangerouslySetInnerHTML={{ __html: getSummaryHtml() }}
-                 />
-                 {!isSummaryExpanded && (
-                     <span className="text-xs text-[#38B6FF] font-medium mt-1 inline-block group-hover:underline">Read more</span>
-                 )}
-                 {isSummaryExpanded && (
-                     <span className="text-xs text-gray-400 font-medium mt-1 inline-block group-hover:underline">Show less</span>
-                 )}
-              </div>
-          )}
+
        </div>
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
@@ -1352,6 +1337,18 @@ const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summa
            
            {summaryError && <ErrorMessage message={summaryError} />}
            
+           {summary && (
+               <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-5">
+                   <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                       <span className="bg-blue-100 text-blue-600 p-1 rounded">✨</span> Executive Summary
+                   </h4>
+                   <div 
+                       className="prose prose-sm text-gray-700 leading-relaxed max-w-none"
+                       dangerouslySetInnerHTML={{ __html: marked.parse(summary) }}
+                   />
+               </div>
+           )}
+
            <div className="bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto space-y-6">
                {data.transcript.map((item, idx) => (
                    <div key={idx} className="text-sm">
