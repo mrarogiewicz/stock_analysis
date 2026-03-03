@@ -828,8 +828,7 @@ const SuccessDisplay = ({
     onFetchTranscript,
     isFetchingTranscript,
     isGeneratingSummary,
-    transcriptSummary,
-    onSummarizeEarnings
+    transcriptSummary
 }) => {
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
@@ -941,22 +940,6 @@ const SuccessDisplay = ({
                     )}
                 </button>
 
-                <button
-                    onClick={onSummarizeEarnings}
-                    disabled={isGeneratingSummary}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white text-gray-800 font-medium text-sm border border-gray-300 shadow-md hover:bg-gray-50 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-100 transition-all duration-200"
-                    title="Fetch and summarize earnings call"
-                >
-                     {isGeneratingSummary ? (
-                         <Spinner className="w-4 h-4 text-gray-600" />
-                     ) : (
-                         <>
-                             <img src="https://cdn-icons-png.flaticon.com/128/16921/16921758.png" className="w-4 h-4 object-contain" alt="" />
-                             <span>Summarize Earnings</span>
-                         </>
-                     )}
-                </button>
-
 
                
                 {displayType === 'detail' && (
@@ -1046,7 +1029,7 @@ const GeminiResponseDisplay = ({ content, ticker, title }: { content: any; ticke
     );
 };
 
-const CompanyOverviewDisplay = ({ data, transcriptSummary }) => {
+const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing, transcriptSummary }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
@@ -1192,6 +1175,21 @@ const CompanyOverviewDisplay = ({ data, transcriptSummary }) => {
              <div className="text-right text-xs text-gray-500 hidden sm:flex flex-col items-end gap-1">
                 <p>Fiscal Year End: {data.FiscalYearEnd}</p>
                 <p>Latest Qtr: {data.LatestQuarter}</p>
+                <button
+                    onClick={onSummarize}
+                    disabled={isSummarizing}
+                    className="bg-[#38B6FF]/10 text-[#38B6FF] px-3 py-1.5 rounded-lg hover:bg-[#38B6FF]/20 transition-all flex items-center gap-2 disabled:opacity-50 mt-2 text-xs font-semibold shadow-sm"
+                    title="Fetch and summarize earnings call"
+                >
+                     {isSummarizing ? (
+                         <Spinner className="w-3 h-3 text-[#38B6FF]" />
+                     ) : (
+                         <>
+                             <img src="https://cdn-icons-png.flaticon.com/128/16921/16921758.png" className="w-3 h-3" alt="" />
+                             <span>Summarize Earnings</span>
+                         </>
+                     )}
+                </button>
              </div>
           </div>
           
@@ -1965,6 +1963,8 @@ const App = () => {
             {companyOverview && (
                 <CompanyOverviewDisplay 
                     data={companyOverview} 
+                    onSummarize={fetchAndSummarizeTranscript}
+                    isSummarizing={isGeneratingSummary}
                     transcriptSummary={transcriptSummary}
                 />
             )}
@@ -2072,7 +2072,6 @@ const App = () => {
                   isFetchingTranscript={isFetchingTranscript}
                   isGeneratingSummary={isGeneratingSummary}
                   transcriptSummary={transcriptSummary}
-                  onSummarizeEarnings={fetchAndSummarizeTranscript}
                 />
                 <ErrorMessage message={saveError} />
               </div>
