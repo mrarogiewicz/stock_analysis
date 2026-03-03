@@ -371,6 +371,8 @@ const useStockAnalysisGenerator = () => {
          }
          
          // Set transcript data so it displays
+         // Ensure quarter is in YYYYQQ format for display
+         data.quarter = `${transcriptYear}Q${transcriptQuarter}`;
          setTranscriptData(data);
          setIsFetchingTranscript(false); // Transcript fetch done
 
@@ -1323,31 +1325,19 @@ const CompanyOverviewDisplay = ({ data, onSummarize, isSummarizing, transcriptSu
 };
 
 const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summaryError }) => {
-    if (!data || !data.transcript) return null;
+    if (!summary) return null;
     
     return (
       <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
         <div className="p-6">
-           <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                 <h3 className="font-bold text-gray-800 text-lg">Earnings Call Transcript</h3>
-                 <p className="text-sm text-gray-500">{data.quarter ? `Quarter: ${data.quarter}` : ''}</p>
-              </div>
-           </div>
+           <h3 className="font-bold text-gray-800 text-lg mb-4">Summarized Earning call - {data.quarter}</h3>
            
            {summaryError && <ErrorMessage message={summaryError} />}
            
-           {summary && (
-               <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-5">
-                   <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                       <span className="bg-blue-100 text-blue-600 p-1 rounded">✨</span> Executive Summary
-                   </h4>
-                   <div 
-                       className="prose prose-sm text-gray-700 leading-relaxed max-w-none"
-                       dangerouslySetInnerHTML={{ __html: marked.parse(summary) }}
-                   />
-               </div>
-           )}
+           <div 
+               className="prose prose-sm text-gray-700 leading-relaxed max-w-none"
+               dangerouslySetInnerHTML={{ __html: marked.parse(summary) }}
+           />
         </div>
       </div>
     );
