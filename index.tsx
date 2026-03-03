@@ -832,7 +832,7 @@ const SuccessDisplay = ({
 }) => {
   return (
     <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
-      <div className="text-center mb-4">
+      <div className="text-center mb-4 hidden">
         <p className="text-xl font-bold text-gray-800">
           {companyOverview?.Name}
         </p>
@@ -1348,18 +1348,6 @@ const EarningsTranscriptDisplay = ({ data, ticker, summary, isSummarizing, summa
                    />
                </div>
            )}
-
-           <div className="bg-gray-50 rounded-lg p-4 max-h-[500px] overflow-y-auto space-y-6">
-               {data.transcript.map((item, idx) => (
-                   <div key={idx} className="text-sm">
-                       <div className="flex items-center gap-2 mb-1">
-                           <span className="font-bold text-gray-800">{item.speaker}</span>
-                           {item.title && <span className="text-xs text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{item.title}</span>}
-                       </div>
-                       <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{item.content}</p>
-                   </div>
-               ))}
-           </div>
         </div>
       </div>
     );
