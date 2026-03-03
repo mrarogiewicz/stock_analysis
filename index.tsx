@@ -1851,7 +1851,7 @@ const StockChartDisplay = ({ data, ticker, range, onRangeChange, isFetching }) =
             </div>
 
             <div className="flex justify-center gap-2 mt-4 flex-wrap">
-                {['1D', '1W', '1M', '3M', 'YTD', '1Y', '5Y', 'All'].map((r) => (
+                {['1M', '3M', 'YTD', '1Y', '5Y', 'All'].map((r) => (
                     <button
                         key={r}
                         onClick={() => onRangeChange(r)}
