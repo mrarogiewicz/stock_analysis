@@ -22,6 +22,7 @@ const useStockAnalysisGenerator = () => {
   
   const [generatedSimpleContent, setGeneratedSimpleContent] = useState('');
   const [generatedDetailContent, setGeneratedDetailContent] = useState('');
+  const [generatedRefinedContent, setGeneratedRefinedContent] = useState('');
   const [displayType, setDisplayType] = useState('simple');
 
   const [generatedForTicker, setGeneratedForTicker] = useState('');
@@ -109,26 +110,31 @@ const useStockAnalysisGenerator = () => {
 
       const simpleUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_simple.md';
       const detailUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_detail.md';
+      const refinedUrl = 'https://raw.githubusercontent.com/mrarogiewicz/prompts/refs/heads/main/stock_analysis_refined.md';
 
-      const [simpleResponse, detailResponse] = await Promise.all([
+      const [simpleResponse, detailResponse, refinedResponse] = await Promise.all([
           fetch(simpleUrl),
-          fetch(detailUrl)
+          fetch(detailUrl),
+          fetch(refinedUrl)
       ]);
 
-      if (!simpleResponse.ok || !detailResponse.ok) {
+      if (!simpleResponse.ok || !detailResponse.ok || !refinedResponse.ok) {
         throw new Error(`Failed to fetch prompt templates.`);
       }
       
-      const [simpleTemplate, detailTemplate] = await Promise.all([
+      const [simpleTemplate, detailTemplate, refinedTemplate] = await Promise.all([
           simpleResponse.text(),
-          detailResponse.text()
+          detailResponse.text(),
+          refinedResponse.text()
       ]);
       
       const finalSimplePrompt = simpleTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, currentCompanyName || ticker.toUpperCase());
       const finalDetailPrompt = detailTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, currentCompanyName || ticker.toUpperCase());
+      const finalRefinedPrompt = refinedTemplate.replace(/XXX/g, ticker.toUpperCase()).replace(/YYY/g, currentCompanyName || ticker.toUpperCase());
       
       setGeneratedSimpleContent(finalSimplePrompt);
       setGeneratedDetailContent(finalDetailPrompt);
+      setGeneratedRefinedContent(finalRefinedPrompt);
       setDisplayType('simple'); // Default to showing simple view
       setGeneratedForTicker(ticker.toUpperCase());
       setTicker(''); // Clear the input field
@@ -143,7 +149,11 @@ const useStockAnalysisGenerator = () => {
   }, [ticker, companyName]);
   
   const saveAnalysis = useCallback(async () => {
-    const contentToSave = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
+    let contentToSave = '';
+    if (displayType === 'simple') contentToSave = generatedSimpleContent;
+    else if (displayType === 'detail') contentToSave = generatedDetailContent;
+    else if (displayType === 'refined') contentToSave = generatedRefinedContent;
+
     if (!contentToSave || !generatedForTicker) return;
 
     setIsSaving(true);
@@ -177,10 +187,14 @@ const useStockAnalysisGenerator = () => {
     } finally {
         setIsSaving(false);
     }
-  }, [generatedSimpleContent, generatedDetailContent, generatedForTicker, displayType]);
+  }, [generatedSimpleContent, generatedDetailContent, generatedRefinedContent, generatedForTicker, displayType]);
 
   const generateWithGemini = useCallback(async () => {
-    const content = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
+    let content = '';
+    if (displayType === 'simple') content = generatedSimpleContent;
+    else if (displayType === 'detail') content = generatedDetailContent;
+    else if (displayType === 'refined') content = generatedRefinedContent;
+
     if (!content) return;
 
     addToResultOrder('gemini');
@@ -209,7 +223,7 @@ const useStockAnalysisGenerator = () => {
     } finally {
       setIsGeneratingWithGemini(false);
     }
-  }, [generatedSimpleContent, generatedDetailContent, displayType, addToResultOrder]);
+  }, [generatedSimpleContent, generatedDetailContent, generatedRefinedContent, displayType, addToResultOrder]);
 
   const fetchIncomeStatement = useCallback(async () => {
     if (!generatedForTicker) return;
@@ -420,6 +434,7 @@ const useStockAnalysisGenerator = () => {
     error,
     generatedSimpleContent,
     generatedDetailContent,
+    generatedRefinedContent,
     generateAnalysis,
     generatedForTicker,
     isSaving,
@@ -827,7 +842,7 @@ const SuccessDisplay = ({
               type="button"
               onClick={() => onDisplayTypeChange('simple')}
               aria-pressed={displayType === 'simple'}
-              className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+              className={`w-1/3 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
               displayType === 'simple' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
               }`}
           >
@@ -835,9 +850,19 @@ const SuccessDisplay = ({
           </button>
           <button
               type="button"
+              onClick={() => onDisplayTypeChange('refined')}
+              aria-pressed={displayType === 'refined'}
+              className={`w-1/3 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+              displayType === 'refined' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
+              }`}
+          >
+              Refined
+          </button>
+          <button
+              type="button"
               onClick={() => onDisplayTypeChange('detail')}
               aria-pressed={displayType === 'detail'}
-              className={`w-1/2 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
+              className={`w-1/3 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
               displayType === 'detail' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
               }`}
           >
@@ -1911,6 +1936,7 @@ const App = () => {
     error,
     generatedSimpleContent,
     generatedDetailContent,
+    generatedRefinedContent,
     generateAnalysis,
     generatedForTicker,
     isSaving,
@@ -1949,7 +1975,11 @@ const App = () => {
   } = useStockAnalysisGenerator();
 
   const isTickerPresent = ticker.trim().length > 0;
-  const contentToDisplay = displayType === 'simple' ? generatedSimpleContent : generatedDetailContent;
+  let contentToDisplay = '';
+  if (displayType === 'simple') contentToDisplay = generatedSimpleContent;
+  else if (displayType === 'detail') contentToDisplay = generatedDetailContent;
+  else if (displayType === 'refined') contentToDisplay = generatedRefinedContent;
+
   const hasContent = !!(contentToDisplay && !error);
 
   const renderResultItem = (type) => {

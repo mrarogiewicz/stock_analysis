@@ -13,6 +13,7 @@ import saveAnalysisHandler from './api/save-analysis';
 import stockChartHandler from './api/stock-chart';
 import summarizeEarningsHandler from './api/summarize-earnings';
 import symbolSearchHandler from './api/symbol-search';
+import testHandler from './api/test';
 
 async function startServer() {
   const app = express();
@@ -42,25 +43,7 @@ async function startServer() {
   app.get('/api/stock-chart', wrap(stockChartHandler));
   app.post('/api/summarize-earnings', wrap(summarizeEarningsHandler));
   app.get('/api/symbol-search', wrap(symbolSearchHandler));
-
-  // Add handler for /api/test
-  app.get('/api/test', async (req, res) => {
-    const { exec } = require('child_process');
-    exec('python3 api/test.py', (error: any, stdout: string, stderr: string) => {
-      if (error) {
-        console.error(`exec error: ${error}`);
-        return res.status(500).json({ error: error.message, stderr });
-      }
-      try {
-        // Try to parse as JSON first
-        const jsonResponse = JSON.parse(stdout);
-        res.json(jsonResponse);
-      } catch (e) {
-        // If not JSON, return as text in a JSON object
-        res.json({ random_string: stdout.trim() });
-      }
-    });
-  });
+  app.get('/api/test', wrap(testHandler));
 
   // Vite middleware for development
   // In production, we would serve static files, but for this environment we use Vite middleware
