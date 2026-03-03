@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { marked } from 'marked';
+import { motion } from 'framer-motion';
 import {
   ComposedChart,
   Line,
@@ -837,37 +838,30 @@ const SuccessDisplay = ({
         </p>
       </div>
 
-      <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-lg p-1 mb-5">
-          <button
-              type="button"
-              onClick={() => onDisplayTypeChange('simple')}
-              aria-pressed={displayType === 'simple'}
-              className={`w-1/3 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
-              displayType === 'simple' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-              }`}
-          >
-              Simple
-          </button>
-          <button
-              type="button"
-              onClick={() => onDisplayTypeChange('refined')}
-              aria-pressed={displayType === 'refined'}
-              className={`w-1/3 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
-              displayType === 'refined' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-              }`}
-          >
-              Refined
-          </button>
-          <button
-              type="button"
-              onClick={() => onDisplayTypeChange('detail')}
-              aria-pressed={displayType === 'detail'}
-              className={`w-1/3 py-2 rounded-md text-sm font-medium transition-all duration-200 focus:outline-none ${
-              displayType === 'detail' ? 'bg-white text-gray-500 shadow-sm' : 'bg-transparent text-gray-500 hover:bg-white/50'
-              }`}
-          >
-              Detail
-          </button>
+      <div className="max-w-xs mx-auto flex w-full bg-gray-200/80 rounded-xl p-1 mb-5 relative">
+          {['simple', 'refined', 'detail'].map((type) => {
+            const isActive = displayType === type;
+            return (
+              <button
+                  key={type}
+                  type="button"
+                  onClick={() => onDisplayTypeChange(type)}
+                  className={`relative w-1/3 py-2 text-sm font-medium transition-colors duration-200 focus:outline-none z-10 ${
+                      isActive ? 'text-white' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                  {isActive && (
+                      <motion.div
+                          layoutId="activeTab"
+                          className="absolute inset-0 bg-[#38B6FF] rounded-lg shadow-sm"
+                          style={{ zIndex: -1 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                  )}
+                  <span className="relative z-10">{type.charAt(0).toUpperCase() + type.slice(1)}</span>
+              </button>
+            );
+          })}
       </div>
 
       <div className="space-y-4">
